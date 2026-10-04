@@ -1,0 +1,22 @@
+# Compila SIP_Paneles.exe en un servidor Windows de GitHub, sin instalar nada en tu PC.
+# Uso: subir esta carpeta a un repositorio de GitHub, ir a Actions > "Compilar para Windows" > Run workflow,
+# y descargar el archivo SIP_Paneles.exe desde "Artifacts" cuando termine.
+name: Compilar para Windows
+on: workflow_dispatch
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt pyinstaller
+      - run: >
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name SIP_Paneles
+          --collect-submodules ezdxf --hidden-import crear_plantilla --hidden-import generar_ejemplo
+          --hidden-import generar_hojas app_sip.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SIP_Paneles
+          path: dist/SIP_Paneles.exe
