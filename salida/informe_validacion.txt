@@ -1,0 +1,8 @@
+INFORME DE VALIDACIÓN — Proyecto Demo
+============================================================
+Módulo: 3.050 × 4.880 m
+Caída hacia el lado: A
+Paneles de muro: 14 · Paneles de techo: 8 · Vanos: 3
+
+ALERTAS (1):
+  - B-02: V2 a 10.0 cm del borde derecho (mínimo 20.0 cm).
