@@ -1,7 +1,7 @@
-"""Genera un DXF de ejemplo con un módulo de 3,05 x 4,88 m.
+"""Genera la plantilla de AutoCAD (capas, bloques e instrucciones) con un módulo de ejemplo dibujado, que se borra antes de guardar el DXF final. Módulo de 3,05 x 4,88 m.
 
-Caída hacia A (arriba). El techo son 8 paneles trabados (lado largo de 2,44 m en el sentido corto del módulo). Incluye una ventana correcta, una puerta ventana que
-cruza una junta, una corrediza hasta el piso que toma mitad en D-02 y mitad en D-03,
+Caída hacia A (arriba). El techo son 8 paneles trabados (lado largo de 2,44 m en el sentido corto del módulo), por dentro del espesor de los muros en los lados sin caída. Incluye una ventana correcta, una puerta ventana con una
+jamba justo sobre una junta (la trae el panel vecino), una corrediza hasta el piso que toma mitad en D-02 y mitad en D-03,
 y una ventana puesta a propósito a 10 cm de una junta para
 ver cómo aparece la alerta en el informe.
 
@@ -11,7 +11,57 @@ import argparse
 
 import ezdxf
 
+INSTRUCCIONES = """\
+PLANTILLA HABITEC - MODULO SIP (unidades: metros)
+ANTES DE GUARDAR EL DXF FINAL: BORRAR TODO EL DIBUJO DE EJEMPLO
+(Ctrl+A y Supr; las capas y los bloques quedan guardados en el archivo).
+Dibujar un solo modulo por archivo, con rectangulos CERRADOS y sin girar.
+MODULO: contorno exterior (multiplo de 0,61 m).
+CAIDA: flecha hacia donde baja el techo.
+PANEL: un rectangulo por panel de muro (ancho x 0,09), sobre el contorno.
+TECHO: un rectangulo por panel de techo, en planta (max. 1,22 x 2,44; juntas trabadas).
+VANO: rectangulo con la medida de la ABERTURA (sin huelgo) + bloque VANO_BLOQUE
+  (TIPO V/PV/C/P; DINTEL = cota del borde superior de la abertura desde el piso, ej. 2.05;
+  ANTEPECHO = cota del borde inferior). Insertar con la capa VANO como actual.
+PANEL_REV (opcional): REV_BLOQUE solo para cambiar CARA (EXT/INT) o SENTIDO (V/H).
+--- Solo para la lamina grafica (no van a las hojas de taller) ---
+REV_EXT_CHAPA / REV_EXT_WPC: una linea sobre la cara EXTERIOR del muro, en el tramo que lleva
+  ese revestimiento. Sin linea, el exterior es smart panel.
+REV_INT_PLACA (yeso pegado), _OMEGA, _P35, _P70, _CERAMICO, _PVC: una linea sobre la cara
+  INTERIOR del muro (o del tabique) en el tramo que lleva ese revestimiento. Sin linea: OSB visto.
+TABIQUE_DURLOCK: un rectangulo por tabique de durlock, con su espesor real.
+SANITARIOS: artefactos y equipamiento (lineas, circulos, bloques): se dibujan tal cual.
+PISO: sombreado o lineas del piso: se dibujan tal cual, con linea muy fina.
+ELECTRICIDAD: bloques ELEC_TOMA, ELEC_CENTRO, ELEC_LLAVE, ELEC_APLIQUE.
+PUERTA_GIRO: hoja y arco de cada puerta (queda en el DXF; no sale en la lamina grafica).
+Guardar: SAVEAS > AutoCAD DXF (2018 o anterior). La capa LEEME no se lee."""
+
 FACTOR = {"m": 1, "cm": 100, "mm": 1000}
+
+
+def definir_bloques_electricidad(doc, k: float = 1.0) -> None:
+    """Bloques de bocas eléctricas (se insertan en la capa ELECTRICIDAD; la lámina los dibuja tal cual)."""
+    if "ELEC_TOMA" not in doc.blocks:
+        b = doc.blocks.new("ELEC_TOMA")                     # tomacorriente: círculo con dos patas
+        b.add_circle((0, 0), 0.05 * k)
+        b.add_line((-0.02 * k, -0.05 * k), (-0.02 * k, -0.09 * k))
+        b.add_line((0.02 * k, -0.05 * k), (0.02 * k, -0.09 * k))
+    if "ELEC_CENTRO" not in doc.blocks:
+        b = doc.blocks.new("ELEC_CENTRO")                   # boca de techo: círculo con cruz
+        b.add_circle((0, 0), 0.08 * k)
+        r = 0.08 * k * 0.707
+        b.add_line((-r, -r), (r, r))
+        b.add_line((-r, r), (r, -r))
+    if "ELEC_LLAVE" not in doc.blocks:
+        b = doc.blocks.new("ELEC_LLAVE")                    # llave de un punto
+        b.add_circle((0, 0), 0.035 * k)
+        b.add_line((0.025 * k, 0.025 * k), (0.09 * k, 0.09 * k))
+        b.add_line((0.09 * k, 0.09 * k), (0.12 * k, 0.06 * k))
+    if "ELEC_APLIQUE" not in doc.blocks:
+        b = doc.blocks.new("ELEC_APLIQUE")                  # aplique de pared
+        b.add_circle((0, 0), 0.06 * k)
+        b.add_line((-0.06 * k, 0), (0.06 * k, 0))
+        b.add_line((-0.08 * k, -0.06 * k), (0.08 * k, -0.06 * k))
 INSUNITS = {"m": 6, "cm": 5, "mm": 4}
 
 
@@ -20,14 +70,20 @@ def crear(ruta: str, unidades: str = "m") -> None:
     doc = ezdxf.new("R2018")
     doc.header["$INSUNITS"] = INSUNITS[unidades]
     for nombre, color in (("MODULO", 7), ("CAIDA", 1), ("PANEL", 3),
-                          ("VANO", 5), ("PANEL_REV", 6), ("TECHO", 4)):
+                          ("VANO", 5), ("PANEL_REV", 6), ("TECHO", 4), ("LEEME", 8),
+                          ("REV_EXT_CHAPA", 250), ("REV_EXT_WPC", 32),
+                          ("REV_INT_PLACA", 140), ("REV_INT_OMEGA", 150), ("REV_INT_P35", 160),
+                          ("REV_INT_P70", 170), ("REV_INT_CERAMICO", 40), ("REV_INT_PVC", 90),
+                          ("TABIQUE_DURLOCK", 8), ("SANITARIOS", 30), ("PISO", 9), ("ELECTRICIDAD", 2),
+                          ("PUERTA_GIRO", 1)):
         doc.layers.add(nombre, color=color)
+    definir_bloques_electricidad(doc, k)
 
     # Bloques con atributos
     b = doc.blocks.new("VANO_BLOQUE")
-    b.add_attdef("TIPO", (0, 0), "V", dxfattribs={"height": 0.08 * k})
-    b.add_attdef("ALTO", (0, -0.10 * k), "1.00", dxfattribs={"height": 0.08 * k})
-    b.add_attdef("ANTEPECHO", (0, -0.20 * k), "0.90", dxfattribs={"height": 0.08 * k})
+    b.add_attdef("TIPO", (0, 0), "V", dxfattribs={"height": 0.08 * k, "prompt": "Tipo de vano (V ventana, PV puerta ventana, C corrediza, P puerta)"})
+    b.add_attdef("DINTEL", (0, -0.10 * k), "2.05", dxfattribs={"height": 0.08 * k, "prompt": "Cota del dintel desde el piso, sin huelgo (ej. 2.05)"})
+    b.add_attdef("ANTEPECHO", (0, -0.20 * k), "0.90", dxfattribs={"height": 0.08 * k, "prompt": "Altura del antepecho desde el piso (0 si llega al piso)"})
     r = doc.blocks.new("REV_BLOQUE")
     r.add_attdef("CARA", (0, 0), "EXT", dxfattribs={"height": 0.08 * k})
     r.add_attdef("SENTIDO", (0, -0.10 * k), "V", dxfattribs={"height": 0.08 * k})
@@ -56,25 +112,28 @@ def crear(ruta: str, unidades: str = "m") -> None:
         rect(W - e, y0, W, y0 + 1.22, "PANEL")   # B
         rect(0, y0, e, y0 + 1.22, "PANEL")       # D
 
-    # Techo: el lado largo del panel (2,44) va en el sentido corto del módulo (X) y las
-    # filas se traban: 3,05 = 2,44 + 0,61 (ajuste), alternando de qué lado va el ajuste.
-    filas = [(3.66, "largo_izq"), (2.44, "corto_izq"), (1.22, "largo_izq"), (0.0, "corto_izq")]
-    for y0, tipo in filas:
-        cortes = (0, 2.44, 3.05) if tipo == "largo_izq" else (0, 0.61, 3.05)
+    # Techo: va por dentro del espesor de los muros en los tres lados sin caída (B, C y D) y
+    # llega al filo exterior del lado de la caída (A, donde se refila en obra). Zona: x de 0,09 a
+    # 2,96 (2,87 = 2,44 + 0,43) e y de 0,09 a 4,88. El lado largo del panel (2,44) va en el sentido
+    # corto del módulo (X) y las filas se traban alternando de qué lado va el ajuste.
+    filas = [((3.66, 4.88), "largo_izq"), ((2.44, 3.66), "corto_izq"),
+             ((1.22, 2.44), "largo_izq"), ((e, 1.22), "corto_izq")]
+    for (y0, y1), tipo in filas:
+        cortes = (e, e + 2.44, W - e) if tipo == "largo_izq" else (e, e + 0.43, W - e)
         for x0, x1 in zip(cortes, cortes[1:]):
-            rect(x0, y0, x1, y0 + 1.22, "TECHO")
+            rect(x0, y0, x1, y1, "TECHO")
 
     # Vanos: rectángulo con la medida de la abertura + bloque con atributos
     def vano(x0, y0, x1, y1, tipo, alto, antepecho=None):
         rect(x0, y0, x1, y1, "VANO")
-        att = {"TIPO": tipo, "ALTO": f"{alto * k:.3f}"}
+        att = {"TIPO": tipo, "DINTEL": f"{((antepecho or 0) + alto) * k:.3f}"}
         att["ANTEPECHO"] = f"{(antepecho or 0) * k:.3f}"
         cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
         ins = msp.add_blockref("VANO_BLOQUE", (cx * k, cy * k), dxfattribs={"layer": "VANO"})
         ins.add_auto_attribs(att)
 
     vano(1.52, H - e, 2.32, H, "V", 1.00, 0.90)        # ventana en A-02 (a 21 cm de las juntas)
-    vano(0.71, 0, 1.91, e, "PV", 2.05)                 # puerta ventana que cruza la junta C-01/C-02
+    vano(0.61, 0, 1.31, e, "PV", 2.05)                 # puerta ventana con la jamba justo en la junta C-01/C-02
     vano(W - e, 2.54, W, 3.34, "V", 1.00, 0.90)        # ventana en B-02 a 10 cm de una junta (alerta)
 
     # Corrediza hasta el piso, mitad en D-02 y mitad en D-03 (junta en y = 2,44)
@@ -85,6 +144,17 @@ def crear(ruta: str, unidades: str = "m") -> None:
     ins = msp.add_blockref("REV_BLOQUE", (0.70 * k, (H - e / 2) * k), dxfattribs={"layer": "PANEL_REV"})
     ins.add_auto_attribs({"CARA": "EXT", "SENTIDO": "H"})
 
+    # Lámina gráfica: ejemplos de revestimiento (exterior WPC en parte del lado C; interior con
+    # placa sobre omega en A y B) y una boca de techo.
+    def linea(capa, a, b):
+        msp.add_line((a[0] * k, a[1] * k), (b[0] * k, b[1] * k), dxfattribs={"layer": capa})
+    linea("REV_EXT_WPC", (1.40, 0.0), (W, 0.0))
+    linea("REV_INT_OMEGA", (e, H - e), (W - e, H - e))
+    linea("REV_INT_OMEGA", (W - e, H - e), (W - e, e))
+    msp.add_blockref("ELEC_CENTRO", (W / 2 * k, H / 2 * k), dxfattribs={"layer": "ELECTRICIDAD"})
+
+    msp.add_mtext(INSTRUCCIONES, dxfattribs={"layer": "LEEME", "char_height": 0.09 * k,
+                                              "insert": (-6.5 * k, 4.9 * k), "width": 6.0 * k})
     doc.saveas(ruta)
 
 

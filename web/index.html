@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="logo.jpg">
+<title>HABITEC · Hojas de taller</title>
+<style>
+  :root { --bg:#f6f5f2; --panel:#fff; --tx:#1c1c1c; --mut:#6f6f6f; --lin:#dcdad4; --ac:#1f5fa8; --ok:#2f7d4f; --mal:#c0281e; --crema:#f3e6c4; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161616; --panel:#202020; --tx:#eee; --mut:#a0a0a0; --lin:#363636; --ac:#6aa5e8; --ok:#6fcf97; --mal:#ff7b6e; --crema:#4a4230; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { background:var(--panel); border-bottom:1px solid var(--lin); }
+  .tope { max-width:880px; margin:0 auto; padding:14px 16px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .logo { height:44px; background:#fff; border-radius:6px; padding:2px 6px; align-self:center; }
+  .marca { font-weight:800; letter-spacing:.14em; font-size:22px; }
+  .sub { color:var(--mut); }
+  main { max-width:880px; margin:0 auto; padding:16px; display:grid; gap:14px; }
+  section { background:var(--panel); border:1px solid var(--lin); border-radius:10px; padding:16px; }
+  h2 { margin:0 0 10px; font-size:14px; letter-spacing:.04em; text-transform:uppercase; color:var(--mut); }
+  label { display:block; font-size:13px; color:var(--mut); margin:10px 0 3px; }
+  input[type=text], select { width:100%; padding:9px 10px; border:1px solid var(--lin); border-radius:7px; background:var(--bg); color:var(--tx); font:inherit; }
+  .fila { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .fila3 { display:grid; grid-template-columns:2fr 1fr; gap:12px; }
+  @media (max-width:640px) { .fila, .fila3 { grid-template-columns:1fr; } }
+  #zona { border:2px dashed var(--lin); border-radius:10px; padding:22px; text-align:center; color:var(--mut); cursor:pointer; }
+  #zona.sobre { border-color:var(--ac); background:var(--crema); }
+  #zona strong { color:var(--tx); }
+  button, .boton { appearance:none; border:1px solid var(--lin); background:var(--bg); color:var(--tx); padding:9px 14px; border-radius:7px; font:inherit; cursor:pointer; text-decoration:none; display:inline-block; }
+  button.principal { background:var(--ac); border-color:var(--ac); color:#fff; font-weight:600; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .botones { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  #estado { color:var(--mut); font-size:13px; margin-top:10px; min-height:1.3em; }
+  #estado.mal { color:var(--mal); }
+  pre { margin:0; white-space:pre-wrap; font:12.5px/1.5 ui-monospace, Consolas, monospace; max-height:300px; overflow:auto; }
+  .alerta { color:var(--mal); }
+  .nota { font-size:12.5px; color:var(--mut); margin-top:8px; }
+  iframe { width:100%; height:560px; border:1px solid var(--lin); border-radius:8px; background:#fff; margin-top:12px; }
+  .oculto { display:none; }
+  input[type=number] { width:100%; padding:9px 10px; border:1px solid var(--lin); border-radius:7px; background:var(--bg); color:var(--tx); font:inherit; }
+  .fila4 { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; }
+  @media (max-width:640px) { .fila4 { grid-template-columns:1fr 1fr; } }
+  .muro-tit { font-weight:600; }
+  .muro-tit span { font-weight:400; color:var(--mut); font-size:13px; margin-left:6px; }
+  .muro-cols { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; }
+  .tramo { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:8px; margin-top:6px; align-items:center; }
+  @media (max-width:640px) { .muro-cols { grid-template-columns:1fr; } .tramo { grid-template-columns:1fr 1fr; } }
+  button.chico { padding:6px 10px; font-size:13px; }
+  table.mats { width:100%; border-collapse:collapse; margin-top:8px; }
+  table.mats td, table.mats th { padding:4px; text-align:left; font-size:13px; }
+  table.mats th { color:var(--mut); font-weight:500; }
+  details summary { cursor:pointer; color:var(--mut); font-size:13px; margin-top:12px; }
+</style>
+</head>
+<body>
+<header><div class="tope"><img class="logo" src="logo.jpg" alt="HABITEC"><span class="marca">HABITEC</span><span class="sub">Hojas de taller · Paneles SIP</span></div></header>
+<main>
+  <section>
+    <h2>1 · Plano del módulo</h2>
+    <div id="zona" tabindex="0">
+      <div id="zonaTxt"><strong>Arrastrá el archivo DXF acá</strong> o tocá para elegirlo</div>
+      <input id="archivo" type="file" accept=".dxf" class="oculto">
+    </div>
+    <p class="nota">Si el plano está en DWG, en AutoCAD usá <code>SAVEAS</code> y guardalo como «AutoCAD 2018 DXF».
+      El archivo se procesa en tu propia computadora: no se sube a ningún servidor.</p>
+    <div class="fila">
+      <div><label for="proyecto">Nombre del proyecto</label><input id="proyecto" type="text" autocomplete="off"></div>
+      <div><label for="unidades">Unidades del dibujo</label>
+        <select id="unidades"><option value="auto">Automático (las del DXF)</option><option value="m">Metros</option>
+          <option value="cm">Centímetros</option><option value="mm">Milímetros</option></select></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2 · Carátula: revestimientos y terminaciones</h2>
+    <p class="nota" style="margin-top:0">Elegí una opción o escribí la tuya. Lo que quede vacío figura como «a definir».</p>
+    <label for="interior">Revestimiento interior</label>
+    <input id="interior" type="text" list="l_int" autocomplete="off">
+    <label for="cielorraso">Cielorraso</label>
+    <input id="cielorraso" type="text" list="l_cie" autocomplete="off">
+    <label for="exterior">Revestimiento exterior</label>
+    <input id="exterior" type="text" list="l_ext" autocomplete="off">
+    <div class="fila3">
+      <div><label for="obs">Observaciones</label><input id="obs" type="text" autocomplete="off"></div>
+      <div><label for="rev">Revisión</label><input id="rev" type="text" value="00" autocomplete="off"></div>
+    </div>
+    <label for="piel">Cara exterior de los paneles de muro</label>
+    <select id="piel"><option value="smart">Smart panel</option><option value="osb">OSB (sin smart panel)</option></select>
+    <p class="nota">Esta opción sí cambia las hojas: con OSB desaparecen el smart panel y el machimbrado exterior. Lo demás de la carátula es informativo.</p>
+    <label for="esquina">Esquina donde arranca el montaje</label>
+    <select id="esquina" disabled><option value="NO">Se completa al cargar el plano</option></select>
+    <label for="parrillas">Parrillas de piso en el camión</label>
+    <select id="parrillas"><option value="no">No (las coloca otro equipo)</option><option value="si">Sí, van en el camión</option></select>
+    <p class="nota">Definen la secuencia de carga del camión (lámina 3 del PDF y solapa «Carga camión» del Excel): primero las parrillas, después las dos caras de esa esquina (por ejemplo A-F), luego los paneles lado por lado en sentido horario (A, B, C…), los tabiques y al final el techo.</p>
+    <datalist id="l_int"></datalist><datalist id="l_cie"></datalist><datalist id="l_ext"></datalist>
+  </section>
+
+  <section>
+    <h2>3 · Generar</h2>
+    <div class="botones">
+      <button id="bGenerar" class="principal" disabled>Generar hojas</button>
+      <button id="bValidar" disabled>Solo validar el dibujo</button>
+      <button id="bPlantilla" disabled>Bajar plantilla de AutoCAD (con ejemplo)</button>
+    </div>
+    <div id="motivo" class="nota"></div>
+    <div id="estado">Iniciando…</div>
+  </section>
+
+  <section id="secLamina">
+    <h2>4 · Lámina gráfica: planta y vistas</h2>
+    <p class="nota" style="margin-top:0">Sale del mismo DXF. Los revestimientos se dibujan en el plano, con una línea por tramo
+      en las capas <code>REV_EXT_…</code> (sobre la cara exterior del muro) y <code>REV_INT_…</code> (sobre la cara interior,
+      también en tabiques). Sin línea, el exterior es smart panel y el interior, OSB visto. También se leen
+      <code>TABIQUE_DURLOCK</code>, <code>SANITARIOS</code>, <code>PISO</code> y <code>ELECTRICIDAD</code>.
+      Todo viene en la plantilla de AutoCAD.</p>
+    <div class="fila4">
+      <div><label for="lamPiso">Piso interior sobre la base (cm)</label><input id="lamPiso" type="number" step="1" min="0"></div>
+      <div><label for="lamZi">Zinguería inferior (cm)</label><input id="lamZi" type="number" step="0.5" min="0"></div>
+      <div><label for="lamZs">Zinguería superior (cm)</label><input id="lamZs" type="number" step="0.5" min="0"></div>
+      <div><label for="lamZe">Zinguería de esquina (cm)</label><input id="lamZe" type="number" step="0.5" min="0"></div>
+    </div>
+    <label for="lamVistas">Vistas</label>
+    <select id="lamVistas"><option value="con_aberturas">Solo las caras con aberturas</option><option value="todas">Todas las caras</option></select>
+    <details>
+      <summary>Revestimientos: espesor y dibujo en la vista</summary>
+      <table class="mats"><thead><tr><th>Capa del DXF</th><th>Nombre</th><th>Espesor (cm)</th><th>Dibujo en vista</th><th>Junta cada (cm)</th></tr></thead>
+        <tbody id="tablaMat"></tbody></table>
+      <p class="nota">Para un revestimiento nuevo, creá la capa en AutoCAD (por ejemplo <code>REV_EXT_SIDING</code>) y agregalo acá con el mismo nombre.</p>
+      <div class="botones" style="margin-top:6px">
+        <button id="bMatExt" class="chico" type="button">Agregar exterior</button>
+        <button id="bMatInt" class="chico" type="button">Agregar interior</button>
+        <button id="bMatReset" class="chico" type="button">Volver a los valores de fábrica</button>
+      </div>
+    </details>
+    <div class="botones"><button id="bLamina" class="principal" disabled>Generar lámina gráfica</button></div>
+    <div id="estadoLam" class="nota"></div>
+    <div id="descLam" class="botones"></div>
+    <iframe id="vistaLam" class="oculto" title="Vista previa de la lámina gráfica"></iframe>
+  </section>
+
+  <section id="secLog" class="oculto">
+    <h2>Resultado</h2>
+    <pre id="log"></pre>
+    <div id="descargas" class="botones"></div>
+    <iframe id="vista" class="oculto" title="Vista previa del PDF"></iframe>
+  </section>
+</main>
+
+<script>
+"use strict";
+const SUG = {
+  l_int: ["Placa de yeso (Durlock) sobre perfil de 35 mm", "Placa de yeso (Durlock) sobre perfil de 70 mm",
+          "Placa de yeso (Durlock) sobre omega", "Placa de yeso pegada directo", "SIP visto hacia el interior",
+          "Combinado según instalaciones (detallar)"],
+  l_ext: ["Smart panel", "WPC", "Chapa acanalada", "Otro (detallar)"],
+};
+SUG.l_cie = SUG.l_int.concat(["Sin cielorraso (SIP visto)"]);
+for (const [id, items] of Object.entries(SUG)) {
+  document.getElementById(id).innerHTML = items.map((t) => `<option value="${t}">`).join("");
+}
+
+const $ = (id) => document.getElementById(id);
+const CAMPOS = ["proyecto", "unidades", "interior", "cielorraso", "exterior", "obs", "rev", "piel", "esquina", "parrillas"];
+let dxf = null;            // {nombre, datos: ArrayBuffer}
+let listo = false;
+let ocupado = false;
+const urls = [];
+
+function guardar() { try { const o = {}; CAMPOS.forEach((c) => o[c] = $(c).value); localStorage.setItem("habitec_sip", JSON.stringify(o)); } catch (e) {} }
+function recordar() { try { const o = JSON.parse(localStorage.getItem("habitec_sip") || "{}"); CAMPOS.forEach((c) => { if (o[c] != null) $(c).value = o[c]; }); } catch (e) {} }
+recordar();
+CAMPOS.forEach((c) => $(c).addEventListener("input", guardar));
+
+function setEstado(t, mal) { $("estado").textContent = t; $("estado").className = mal ? "mal" : ""; }
+function refrescar() {
+  const hab = listo && !ocupado;
+  $("bGenerar").disabled = !(hab && dxf);
+  $("bValidar").disabled = !(hab && dxf);
+  $("bPlantilla").disabled = !hab;
+  $("bLamina").disabled = !(hab && dxf);
+  $("motivo").textContent = ocupado ? "Trabajando…" : !listo ? "Los botones se habilitan cuando termina de cargar (ver el mensaje de abajo)."
+    : !dxf ? "Falta elegir el plano: arrastrá el DXF a la zona 1 (o tocala). Recién ahí se habilita «Generar hojas»." : "";
+}
+
+// --- Archivo DXF ------------------------------------------------------------------
+async function tomarArchivo(f) {
+  if (!f) return;
+  if (/\.dwg$/i.test(f.name)) { setEstado("Ese archivo es DWG. En AutoCAD usá SAVEAS y guardalo como «AutoCAD 2018 DXF».", true); return; }
+  dxf = { nombre: f.name, datos: await f.arrayBuffer() };
+  $("zonaTxt").innerHTML = `<strong>${f.name.replace(/[<&]/g, "")}</strong> · ${(f.size / 1024).toFixed(0)} KB<br>Tocá para cambiarlo`;
+  pedirEsquinas();
+  refrescar();
+}
+function pedirEsquinas() {
+  if (!dxf || !listo) return;
+  worker.postMessage({ tipo: "esquinas", dxf: dxf.datos.slice(0), unidades: $("unidades").value });
+}
+function llenarEsquinas(lista) {
+  const sel = $("esquina"), previo = sel.value;
+  if (!lista.length) { sel.innerHTML = '<option value="NO">No se pudo leer el contorno</option>'; sel.disabled = true; return; }
+  sel.innerHTML = lista.map((e) => `<option value="${e}">${e}</option>`).join("");
+  sel.value = lista.includes(previo) ? previo : lista[0];
+  sel.disabled = false;
+}
+$("unidades").addEventListener("change", pedirEsquinas);
+const zona = $("zona");
+zona.addEventListener("click", () => $("archivo").click());
+zona.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("archivo").click(); } });
+$("archivo").addEventListener("change", (e) => tomarArchivo(e.target.files[0]));
+["dragenter", "dragover"].forEach((n) => zona.addEventListener(n, (e) => { e.preventDefault(); zona.classList.add("sobre"); }));
+["dragleave", "drop"].forEach((n) => zona.addEventListener(n, (e) => { e.preventDefault(); zona.classList.remove("sobre"); }));
+zona.addEventListener("drop", (e) => tomarArchivo(e.dataTransfer.files[0]));
+
+// --- Worker ----------------------------------------------------------------------------
+const params = new URLSearchParams(location.search);
+const PYODIDE = params.get("pyodide") || "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
+const WHEELS = params.get("wheels") ? params.get("wheels").split(",") : null;   // solo para pruebas
+// Versión de un solo archivo (HABITEC_hojas_taller.html): el motor y el programa vienen incluidos en la propia página.
+const incrustado = document.getElementById("workerSrc");
+let worker, zipInc = null;
+if (incrustado) {
+  // Un solo archivo (doble clic): los navegadores no dejan crear workers desde un archivo local,
+  // así que el motor corre en la propia página (la pantalla se queda quieta unos segundos al generar).
+  const b64 = document.getElementById("zipB64").textContent.trim();
+  const bin = atob(b64); zipInc = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) zipInc[i] = bin.charCodeAt(i);
+  const crear = new Function(incrustado.textContent + "\n;return crearMotor;")();
+  const recibir = crear((m) => setTimeout(() => worker.onmessage({ data: m }), 0));
+  worker = { onmessage: null, postMessage: (m) => setTimeout(() => recibir(m), 30) };
+} else {
+  worker = new Worker("worker.js", { type: "module" });
+}
+worker.postMessage({ tipo: "iniciar", pyodide: PYODIDE, wheels: WHEELS, zip: zipInc ? zipInc.buffer : null });
+
+function descargar(nombre, buf, tipo) {
+  const url = URL.createObjectURL(new Blob([buf], { type: tipo || "application/octet-stream" }));
+  urls.push(url);
+  const a = document.createElement("a");
+  a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+}
+const TIPOS = { pdf: "application/pdf", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                txt: "text/plain", dxf: "application/dxf", zip: "application/zip", png: "image/png" };
+const tipoDe = (n) => TIPOS[n.split(".").pop().toLowerCase()];
+
+worker.onmessage = (ev) => {
+  const m = ev.data;
+  if (m.tipo === "estado") setEstado(m.texto);
+  else if (m.tipo === "listo") { listo = true; setEstado("Listo. Elegí el plano para empezar."); pedirEsquinas(); refrescar(); }
+  else if (m.tipo === "esquinas") llenarEsquinas(m.lista);
+  else if (m.tipo === "lamina") mostrarLamina(m);
+  else if (m.tipo === "error") { ocupado = false; setEstado("Error: " + m.mensaje, true); refrescar(); }
+  else if (m.tipo === "archivo") { ocupado = false; setEstado("Listo."); descargar(m.nombre, m.buf, tipoDe(m.nombre)); refrescar(); }
+  else if (m.tipo === "resultado") mostrar(m);
+};
+
+function mostrar(m) {
+  ocupado = false;
+  const s = m.salida;
+  $("secLog").classList.remove("oculto");
+  const log = $("log");
+  log.textContent = "";
+  (s.log || []).forEach((l) => log.append(document.createTextNode(l + "\n")));
+  $("descargas").innerHTML = "";
+  $("vista").classList.add("oculto");
+  if (!s.ok) {
+    setEstado("No se pudo procesar el plano.", true);
+    const sp = document.createElement("span"); sp.className = "alerta"; sp.textContent = "\n" + s.error; log.append(sp);
+    refrescar(); return;
+  }
+  setEstado(s.solo_validar ? "Validación terminada." : "Hojas generadas.");
+  if (!s.solo_validar) {
+    const base = dxf.nombre.replace(/\.dxf$/i, "");
+    const nuevo = (txt, fn, cls) => { const b = document.createElement("button"); b.textContent = txt; if (cls) b.className = cls; b.onclick = fn; $("descargas").append(b); };
+    if (m.archivos["hojas_taller.pdf"]) {
+      nuevo("Ver hojas de taller (PDF)", () => {
+        const url = URL.createObjectURL(new Blob([m.archivos["hojas_taller.pdf"]], { type: "application/pdf" }));
+        urls.push(url);
+        $("vista").src = url; $("vista").classList.remove("oculto");
+        $("vista").scrollIntoView({ behavior: "smooth" });
+      }, "principal");
+    }
+    nuevo("Bajar todo (ZIP)", () => descargar(base + "_hojas.zip", m.zip, "application/zip"));
+    for (const n of ["hojas_taller.pdf", "caratula.pdf", "plano_nomenclatura.pdf", "planilla_paneles.xlsx", "informe_validacion.txt"]) {
+      if (m.archivos[n]) nuevo(n, () => descargar(n, m.archivos[n], tipoDe(n)));
+    }
+  }
+  refrescar();
+}
+
+// --- Lámina gráfica -----------------------------------------------------------------------
+// Revestimientos: la clave es lo que sigue a REV_EXT_ / REV_INT_ en el nombre de la capa.
+const MAT_BASE = {
+  smart: { cara: "EXT", nombre: "Smart panel (sin capa: es el exterior por defecto)", espesor: 0, patron: "tablas", paso: 20 },
+  chapa: { cara: "EXT", nombre: "Chapa acanalada s/ clavaderas", espesor: 3, patron: "chapa", paso: 20 },
+  wpc: { cara: "EXT", nombre: "WPC s/ clavaderas", espesor: 3.5, patron: "tablas", paso: 7 },
+  sip: { cara: "INT", nombre: "OSB visto (sin capa: es el interior por defecto)", espesor: 0, patron: "liso", paso: 0 },
+  placa: { cara: "INT", nombre: "Placa de yeso pegada s/ SIP", espesor: 1.25, patron: "liso", paso: 0 },
+  omega: { cara: "INT", nombre: "Placa de yeso s/ omega", espesor: 2.5, patron: "liso", paso: 0 },
+  p35: { cara: "INT", nombre: "Placa de yeso s/ perfil 35", espesor: 4.8, patron: "liso", paso: 0 },
+  p70: { cara: "INT", nombre: "Placa de yeso s/ perfil 70", espesor: 8.3, patron: "liso", paso: 0 },
+  ceramico: { cara: "INT", nombre: "Cerámico pegado", espesor: 1.2, patron: "liso", paso: 0 },
+  pvc: { cara: "INT", nombre: "Machimbre de PVC", espesor: 1, patron: "liso", paso: 0 },
+};
+const PATRONES = { tablas: "Tablas verticales", chapa: "Chapa (líneas de a pares)", liso: "Liso" };
+const POR_DEFECTO = ["smart", "sip"];
+const LAM_DEF = { piso: 10, zi: 15, zs: 3, ze: 15, vistas: "con_aberturas" };
+let lam = Object.assign({ materiales: JSON.parse(JSON.stringify(MAT_BASE)) }, LAM_DEF);
+try {
+  const g = JSON.parse(localStorage.getItem("habitec_lamina2") || "null");
+  if (g) lam = Object.assign(lam, g);
+} catch (e) {}
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function guardarLam() { try { localStorage.setItem("habitec_lamina2", JSON.stringify(lam)); } catch (e) {} }
+function pintarMateriales() {
+  $("tablaMat").innerHTML = Object.entries(lam.materiales).map(([k, m]) => {
+    const capa = POR_DEFECTO.includes(k) ? "(ninguna)" : `REV_${m.cara}_${k.toUpperCase()}`;
+    const fijo = k in MAT_BASE;
+    return `<tr data-k="${esc(k)}">
+      <td><code>${esc(capa)}</code></td>
+      <td><input type="text" data-c="nombre" value="${esc(m.nombre)}" aria-label="Nombre"></td>
+      <td><input type="number" data-c="espesor" step="0.05" min="0" value="${m.espesor}" aria-label="Espesor (cm)"${POR_DEFECTO.includes(k) ? " disabled" : ""}></td>
+      <td><select data-c="patron" aria-label="Dibujo en vista"${m.cara === "INT" ? " disabled" : ""}>${Object.entries(PATRONES).map(([p, n]) =>
+        `<option value="${p}"${p === m.patron ? " selected" : ""}>${n}</option>`).join("")}</select></td>
+      <td><input type="number" data-c="paso" step="0.5" min="0" value="${m.paso}" aria-label="Junta cada (cm)"${m.cara === "INT" ? " disabled" : ""}></td>
+      <td>${fijo ? "" : '<button class="chico" data-borrar="1" type="button" aria-label="Borrar">✕</button>'}</td></tr>`;
+  }).join("");
+}
+$("tablaMat").addEventListener("change", (e) => {
+  const t = e.target, tr = t.closest("tr"), c = t.dataset.c;
+  if (!tr || !c) return;
+  lam.materiales[tr.dataset.k][c] = (c === "espesor" || c === "paso") ? (+t.value || 0) : t.value;
+  guardarLam();
+});
+$("tablaMat").addEventListener("click", (e) => {
+  if (!e.target.dataset.borrar) return;
+  delete lam.materiales[e.target.closest("tr").dataset.k];
+  guardarLam(); pintarMateriales();
+});
+function agregarMat(cara) {
+  const nombre = (prompt(`Nombre de la capa, sin el prefijo REV_${cara}_ (por ejemplo SIDING):`) || "").trim();
+  const k = nombre.toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  if (!k) return;
+  if (lam.materiales[k]) { alert("Ya existe un revestimiento con ese nombre."); return; }
+  lam.materiales[k] = { cara, nombre: nombre, espesor: 2, patron: cara === "EXT" ? "tablas" : "liso", paso: cara === "EXT" ? 15 : 0 };
+  guardarLam(); pintarMateriales();
+}
+$("bMatExt").onclick = () => agregarMat("EXT");
+$("bMatInt").onclick = () => agregarMat("INT");
+$("bMatReset").onclick = () => { lam.materiales = JSON.parse(JSON.stringify(MAT_BASE)); guardarLam(); pintarMateriales(); };
+[["lamPiso", "piso"], ["lamZi", "zi"], ["lamZs", "zs"], ["lamZe", "ze"], ["lamVistas", "vistas"]].forEach(([id, k]) => {
+  $(id).value = lam[k];
+  $(id).addEventListener("input", () => { lam[k] = $(id).type === "number" ? (+$(id).value || 0) : $(id).value; guardarLam(); });
+});
+pintarMateriales();
+
+function cfgLamina() {
+  const mats = {};
+  for (const [k, m] of Object.entries(lam.materiales)) {
+    mats[k] = { nombre: m.nombre, espesor: (+m.espesor || 0) / 100, patron: m.cara === "INT" ? "liso" : m.patron,
+                paso: (+m.paso || 0) / 100 };
+  }
+  return { materiales: mats, espesor_piso: lam.piso / 100, zingueria_inferior: lam.zi / 100,
+           zingueria_superior: lam.zs / 100, zingueria_esquina: lam.ze / 100, vistas: lam.vistas };
+}
+$("bLamina").onclick = () => {
+  if (!dxf || ocupado || !listo) return;
+  const proyecto = $("proyecto").value.trim();
+  if (!proyecto) { $("estadoLam").textContent = "Escribí el nombre del proyecto (sección 1)."; $("proyecto").focus(); return; }
+  ocupado = true; refrescar();
+  $("estadoLam").textContent = "Dibujando la lámina…";
+  worker.postMessage({ tipo: "lamina", dxf: dxf.datos.slice(0), proyecto, unidades: $("unidades").value, cfg: cfgLamina() });
+};
+function mostrarLamina(m) {
+  ocupado = false;
+  $("descLam").innerHTML = "";
+  if (!m.salida.ok) { $("estadoLam").textContent = "No se pudo dibujar: " + m.salida.error; refrescar(); return; }
+  setEstado("Listo.");
+  $("estadoLam").textContent = "Lámina generada." + (m.salida.avisos.length ? " Avisos: " + m.salida.avisos.join(" ") : "");
+  const url = URL.createObjectURL(new Blob([m.buf], { type: "application/pdf" }));
+  urls.push(url);
+  $("vistaLam").src = url; $("vistaLam").classList.remove("oculto");
+  const nombre = ($("proyecto").value.trim() || "modulo").replace(/[^\w\-]+/g, "_") + "_lamina_grafica.pdf";
+  const b = document.createElement("button"); b.textContent = "Bajar PDF"; b.className = "principal";
+  b.onclick = () => descargar(nombre, m.buf, "application/pdf");
+  $("descLam").append(b);
+  refrescar();
+}
+
+function correr(soloValidar) {
+  if (!dxf || ocupado || !listo) return;
+  const proyecto = $("proyecto").value.trim();
+  if (!proyecto) { setEstado("Escribí el nombre del proyecto.", true); $("proyecto").focus(); return; }
+  ocupado = true; refrescar();
+  const caratula = { interior: $("interior").value.trim(), cielorraso: $("cielorraso").value.trim(),
+                     exterior: $("exterior").value.trim(), observaciones: $("obs").value.trim(),
+                     revision: $("rev").value.trim() || "00", piel_exterior: $("piel").value,
+                     esquina: $("esquina").value, parrillas: $("parrillas").value };
+  const copia = dxf.datos.slice(0);
+  worker.postMessage({ tipo: "generar", dxf: copia, proyecto, unidades: $("unidades").value, caratula, soloValidar }, [copia]);
+}
+$("bGenerar").onclick = () => correr(false);
+$("bValidar").onclick = () => correr(true);
+$("bPlantilla").onclick = () => { ocupado = true; refrescar(); setEstado("Preparando la plantilla…"); worker.postMessage({ tipo: "plantilla" }); };
+refrescar();
+</script>
+</body>
+</html>

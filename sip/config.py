@@ -16,7 +16,8 @@ MODULO_BASE = 0.61          # el módulo crece de a 61 cm
 REBAJE_PERIMETRAL = 0.030   # rebaje de EPS en el perímetro del panel
 REBAJE_VANO = 0.055         # rebaje alrededor de cada vano (aloja tirante 5x7)
 TIRANTE_VANO = (0.05, 0.07)  # sección del tirante de vano (ancho x espesor)
-TIRANTE_CHICO = (0.025, 0.05)  # tirante de unión / tapa (25 x 50 mm); el rebaje de 30 mm le deja 5 mm de huelgo
+TIRANTE_CHICO = (0.025, 0.07)  # medio tirante (25 x 70 mm): la tapa de esquina; el rebaje de 30 mm le deja 5 mm de huelgo
+TIRANTE_JUNTA = (0.05, 0.07)   # tirante de junta (50 x 70 mm): 25 mm en cada panel
 HUELGO_VANO = 0.005         # huelgo por lado que se suma a la abertura
 DIST_MIN_BORDE = 0.20       # distancia mínima vano - junta/borde de panel
 MACHIMBRE_PROF = 0.005      # profundidad aprox. del rebaje de machimbrado
@@ -33,6 +34,14 @@ CAPA_PANEL = "PANEL"
 CAPA_VANO = "VANO"
 CAPA_PANEL_REV = "PANEL_REV"
 CAPA_TECHO = "TECHO"
+# Capas que solo usa la lámina gráfica (no entran al despiece ni a las hojas de taller)
+CAPA_TABIQUE_DURLOCK = "TABIQUE_DURLOCK"   # rectángulo de cada tabique de durlock, con su espesor real
+CAPA_SANITARIOS = "SANITARIOS"             # artefactos y equipamiento: se dibujan tal cual
+CAPA_PUERTA_GIRO = "PUERTA_GIRO"           # hoja y arco de cada puerta: se dibujan tal cual
+CAPA_ELECTRICIDAD = "ELECTRICIDAD"         # bocas (bloques ELEC_*): se dibujan tal cual
+CAPA_PISO = "PISO"                         # trama de piso (sombreado o líneas): se dibuja con la línea más fina
+PREFIJO_REV_EXT = "REV_EXT_"               # REV_EXT_CHAPA, REV_EXT_WPC: línea sobre la cara exterior del tramo
+PREFIJO_REV_INT = "REV_INT_"               # REV_INT_OMEGA, _P35, _P70, _CERAMICO, _PVC: línea sobre la cara interior
 
 # --- Lados -----------------------------------------------------------------------
 # A arriba, B derecha, C abajo, D izquierda (en planta)

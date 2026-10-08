@@ -8,18 +8,29 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from . import config as C
+from .contorno import texto_caida
 from .modelo import Despiece
 
 
-def planilla_xlsx(d: Despiece, ruta: Path) -> None:
+def planilla_xlsx(d: Despiece, ruta: Path, car=None, fecha: str = "") -> None:
     wb = Workbook()
     ws = wb.active
     ws.title = "Paneles"
-    ws["A1"] = "Proyecto"
+    ws["A1"] = "HABITEC · Proyecto"
     ws["B1"] = d.plano.proyecto
     ws["A1"].font = Font(bold=True)
     ws["B1"].font = Font(bold=True)
-    ws["A2"] = f"Caída hacia el lado {d.plano.caida_hacia or '-'}"
+    ws["A2"] = f"Caída hacia el lado {texto_caida(d.plano)}"
+    ws["C1"] = f"Emisión {fecha}" if fecha else ""
+    if car is not None:
+        ws["F1"] = "Rev. interior"
+        ws["G1"] = car.interior or "a definir"
+        ws["F2"] = "Cielorraso"
+        ws["G2"] = car.cielorraso or "a definir"
+        ws["I1"] = "Rev. exterior"
+        ws["J1"] = car.exterior or "a definir"
+        ws["I2"] = "Revisión"
+        ws["J2"] = car.revision
     cab = ["Código", "Tipo", "Lado", "N°", "Ancho (mm)", "Alto/Largo (mm)", "Espesor (mm)", "Ajuste",
            "Revestimiento", "Cara", "Sentido", "Vanos", "Rebaje perimetral", "Tirantes y tapas", "Alertas"]
     fila0 = 4
@@ -54,6 +65,21 @@ def planilla_xlsx(d: Despiece, ruta: Path) -> None:
         if fila[-1].value:
             for c in fila:
                 c.fill = rojo
+    # Solapa con la secuencia de carga del camión
+    from .carga import nombre_esquina, secuencia, vertice_arranque
+    items, _v0 = secuencia(d, getattr(car, "esquina", "NO"), getattr(car, "parrillas", "no") == "si")
+    wc = wb.create_sheet("Carga camión")
+    wc.cell(row=1, column=1, value=f"{d.plano.proyecto} · secuencia de carga del camión").font = Font(bold=True, size=12)
+    wc.cell(row=2, column=1, value=f"Esquina de arranque del montaje: {nombre_esquina(d, _v0)}. "
+                                   "El orden de carga es el orden de montaje; el techo va último.")
+    for j, h in enumerate(("Orden", "Grupo", "Código", "Medidas (mm)", "Observaciones"), start=1):
+        c = wc.cell(row=4, column=j, value=h)
+        c.font = Font(bold=True)
+    for n, it in enumerate(items, start=1):
+        for j, v in enumerate((n, it.grupo, it.codigo, it.medidas, it.detalle), start=1):
+            wc.cell(row=4 + n, column=j, value=v)
+    for j, a in enumerate((8, 12, 18, 16, 20), start=1):
+        wc.column_dimensions[get_column_letter(j)].width = a
     anchos = [9, 8, 6, 5, 11, 15, 12, 8, 14, 10, 11, 36, 28, 50, 60]
     for i, a in enumerate(anchos, start=1):
         ws.column_dimensions[get_column_letter(i)].width = a
@@ -61,12 +87,20 @@ def planilla_xlsx(d: Despiece, ruta: Path) -> None:
     wb.save(ruta)
 
 
-def informe_txt(d: Despiece, ruta: Path) -> None:
-    L = [f"INFORME DE VALIDACIÓN — {d.plano.proyecto}", "=" * 60,
+def informe_txt(d: Despiece, ruta: Path, car=None) -> None:
+    L = [f"HABITEC · INFORME DE VALIDACIÓN — {d.plano.proyecto}", "=" * 60,
          f"Módulo: {d.plano.modulo.ancho_x:.3f} × {d.plano.modulo.alto_y:.3f} m",
-         f"Caída hacia el lado: {d.plano.caida_hacia or 'no definida'}",
-         f"Paneles de muro: {len(d.muros)} · Paneles de techo: {len(d.techos)} · Vanos: {len(d.plano.vanos)}",
-         ""]
+         f"Caída hacia el lado: {texto_caida(d.plano) if d.plano.caida_hacia else 'no definida'}",
+         f"Paneles de muro: {len(d.muros)} · Paneles de techo: {len(d.techos)} · Vanos: {len(d.plano.vanos)}"]
+    if car is not None:
+        L += [f"Revestimiento interior: {car.interior or 'a definir'}",
+              f"Cielorraso: {car.cielorraso or 'a definir'}",
+              f"Revestimiento exterior: {car.exterior or 'a definir'}"]
+    L.append("")
+    if d.avisos:
+        L.append("AVISOS (no bloquean):")
+        L += [f"  - {a}" for a in d.avisos]
+        L.append("")
     if d.alertas:
         L.append(f"ALERTAS ({len(d.alertas)}):")
         L += [f"  - {a}" for a in d.alertas]
@@ -80,11 +114,13 @@ def _bordes_txt(p) -> str:
     partes = []
     for b, (clase, dato) in p.bordes.items():
         if clase == "tirante":
-            partes.append(f"{nombres[b]}: trae tirante 25x50 (junta con {dato})")
+            partes.append(f"{nombres[b]}: trae tirante 50x70 (junta con {dato})")
         elif clase == "recibe":
             partes.append(f"{nombres[b]}: rebaje libre (recibe de {dato})")
         else:
-            partes.append(f"{nombres[b]}: tapa 25x50 (esquina {dato})")
+            partes.append(f"{nombres[b]}: tapa 25x70 (esquina {p.lado}-{dato})")
+    for jj in p.jambas_junta:
+        partes.append(f"{nombres[jj.borde]}: trae tirante 50x70 de la jamba de {jj.vano_id} (vano de {jj.con_panel})")
     return "; ".join(partes)
 
 
@@ -93,7 +129,7 @@ def _tirantes_techo(t) -> str:
     recibe = [f"{'+'.join(v)}" for l, v in t.uniones.items() if t.tirantes.get(l) == "recibe"]
     partes = []
     if lleva:
-        partes.append("trae tirante 25x50 hacia " + ", ".join(lleva))
+        partes.append("trae tirante 50x70 hacia " + ", ".join(lleva))
     if recibe:
         partes.append("recibe tirante de " + ", ".join(recibe))
     return "; ".join(partes)

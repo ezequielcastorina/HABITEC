@@ -37,12 +37,11 @@ def test_ejemplo():
     assert d.plano.caida_hacia == "A"
     alturas = {m.lado: m.alto for m in d.muros}
     assert alturas == {"A": 2.22, "B": 2.44, "C": 2.44, "D": 2.44}
-    assert [a for a in d.alertas if "V2" in a], "debe alertar el vano a 10 cm de la junta"
-    assert len(d.alertas) == 1, d.alertas
-    # Techo: 2,44 en el sentido corto del módulo (X): una columna de 2,44 y otra de ajuste de 0,61
+    assert not d.alertas, d.alertas      # el vano a 10 cm de una junta ya no alerta (criterio del proyectista)
+    # Techo por dentro del espesor de los muros (lados sin caída): 2,44 en X más ajuste de 0,43; fila inferior de 1,13
     ancho_x = sorted({(round(t.rect.ancho_x, 2), round(t.rect.alto_y, 2)) for t in d.techos})
-    assert ancho_x == [(0.61, 1.22), (2.44, 1.22)], ancho_x
-    assert sum(t.es_ajuste for t in d.techos) == 4
+    assert ancho_x == [(0.43, 1.13), (0.43, 1.22), (2.44, 1.13), (2.44, 1.22)], ancho_x
+    assert sum(t.es_ajuste for t in d.techos) == 5
     t01 = d.techos[0]
     assert t01.en_caida and set(t01.uniones) == {"B", "C"}, t01.uniones   # vecino a la derecha y abajo
     assert not d.techos[-1].en_caida
@@ -51,9 +50,11 @@ def test_ejemplo():
     vp = a02.vanos[0]
     assert abs(vp.ancho_total - 0.81) < 1e-6 and abs(vp.alto_total - 1.01) < 1e-6
     c01 = next(m for m in d.muros if m.codigo == "C-01")
-    assert not c01.vanos[0].completo and c01.vanos[0].jamba_der and not c01.vanos[0].jamba_izq
+    assert c01.vanos[0].completo and c01.vanos[0].jamba_der and c01.vanos[0].junta_izq == "C-02"
     assert abs(c01.vanos[0].alto_total - 2.055) < 1e-6      # sin huelgo contra el piso
-    assert not c01.vanos[0].tirante_dintel_taller           # vano compartido: dintel in situ
+    assert c01.vanos[0].tirante_dintel_taller               # vano completo en C-01: dintel en taller
+    d03 = next(m for m in d.muros if m.codigo == "D-03")
+    assert not d03.vanos[0].completo and not d03.vanos[0].tirante_dintel_taller   # corrediza compartida
     assert a02.vanos[0].tirante_dintel_taller               # vano completo: todo en taller
 
 
@@ -67,8 +68,7 @@ def test_caida_hacia_b():
     assert d.plano.caida_hacia == "B"
     bajos = {m.lado for m in d.muros if m.alto < 2.3}
     assert bajos == {"B"}
-    # los vanos se renumeran al girar; la alerta debe seguir siendo una sola, a 10 cm de la junta
-    assert len(d.alertas) == 1 and "10.0 cm" in d.alertas[0], d.alertas
+    assert not d.alertas, d.alertas
 
 
 def test_sin_flecha():
@@ -95,7 +95,7 @@ def test_modulo_no_multiplo():
         for e in msp.query('LWPOLYLINE[layer=="MODULO"]'):
             e.set_points([(0, 0), (3.10, 0), (3.10, 4.88), (0, 4.88)])
     d = correr(modificar(base(), "modulo.dxf", agrandar))
-    assert any("no es múltiplo de 61 cm" in a for a in d.alertas)
+    assert any("no es múltiplo de 61 cm" in a for a in d.avisos) and not any("múltiplo" in a for a in d.alertas)
 
 
 def test_techo_demasiado_largo_y_sin_cubrir():
@@ -176,6 +176,137 @@ def test_smart_y_corrediza_compartida():
         assert not v.completo and abs((v.u1 - v.u0) - 0.605) < 1e-6
         assert v.v0 == 0 and abs(v.v1 - 2.005) < 1e-6
     assert [m for m in cor if m.vanos[0].jamba_izq] and [m for m in cor if m.vanos[0].jamba_der]
+
+
+def test_jamba_sobre_la_junta():
+    """Un vano cuya abertura arranca justo en la junta es válido: el tirante lo trae el vecino."""
+    def mover(doc, msp):
+        for e in list(msp):
+            if e.dxf.layer != "VANO":
+                continue
+            if e.dxftype() == "LWPOLYLINE":
+                pts = [(x, y) for x, y, *_ in e.get_points()]
+                if max(y for _, y in pts) < 0.2:                    # vano del lado C
+                    e.set_points([(0.61, 0), (1.31, 0), (1.31, 0.09), (0.61, 0.09)])
+            elif e.dxftype() == "INSERT" and e.dxf.insert.y < 0.2:
+                e.dxf.insert = (0.96, 0.045, 0)
+    d = correr(modificar(base(), "junta.dxf", mover))
+    assert not [a for a in d.alertas if "V4" in a], d.alertas
+    c01 = next(m for m in d.muros if m.codigo == "C-01")
+    c02 = next(m for m in d.muros if m.codigo == "C-02")
+    vp = c01.vanos[0]
+    assert vp.completo and vp.junta_izq == "C-02" and not vp.jamba_izq and vp.jamba_der
+    assert len(c02.jambas_junta) == 1 and c02.jambas_junta[0].borde == "der"
+    assert c02.jambas_junta[0].con_panel == "C-01" and not c01.jambas_junta
+
+
+def test_caratula_y_marca():
+    from sip.proceso import generar
+    out = tmp / "salida_car"
+    res = generar(base(), "Casa X", "auto", out, caratula={"interior": "Durlock sobre omega"}, log=lambda t: None)
+    assert (out / "caratula.pdf").stat().st_size > 5000
+    assert res.n_muros == 14
+    assert "HABITEC" in (out / "informe_validacion.txt").read_text(encoding="utf-8")
+
+
+def test_cara_exterior_osb():
+    from sip.proceso import generar
+    out = tmp / "salida_osb"
+    generar(base(), "Casa OSB", "auto", out, caratula={"piel_exterior": "osb"}, log=lambda t: None)
+    d = calcular(leer_plano(base(), "Prueba"), "osb")
+    assert not any(m.smart for m in d.muros) and all(m.cara_rev == "" for m in d.muros)
+    d2 = calcular(leer_plano(base(), "Prueba"))
+    assert all(m.smart for m in d2.muros)
+    assert (out / "hojas_taller.pdf").exists()
+
+
+def test_modulo_con_escalon():
+    """Contorno de 6 lados (rectángulo con un escalón) y tabiques interiores."""
+    from pathlib import Path
+    ruta = Path(__file__).parent / "pruebas_datos" / "modulo_con_escalon.dxf"
+    d = calcular(leer_plano(ruta, "Escalón"))
+    assert [l.letra for l in d.plano.lados] == list("ABCDEF")
+    assert [l.dir for l in d.plano.lados] == list("ABCDCD")
+    assert len(d.muros) == 19 and len(d.techos) == 8
+    assert sorted({m.lado for m in d.muros}) == list("ABCDEFI")
+    assert not [a for a in d.alertas if "no tiene paneles" in a or "hueco" in a or "se esperan" in a], d.alertas
+    # Los dos tramos del escalón: D (vertical, lateral: toma las esquinas) y E (horizontal)
+    m = {p.codigo: p for p in d.muros}
+    assert m["D-01"].bordes == {"izq": ("tapa", "C"), "der": ("tapa", "E")}
+    assert abs(m["D-01"].largo - 0.65) < 1e-6 and abs(m["E-01"].rect.x0 - 0.09) < 1e-6
+    assert m["E-02"].bordes["izq"] == ("tapa", "D") and m["F-01"].bordes["der"] == ("tapa", "A")
+    # Tabiques: I-01 e I-02 forman una tira; el resto de los extremos queda libre
+    assert m["I-01"].bordes["der"] == ("tirante", "I-02") and m["I-02"].bordes["izq"] == ("recibe", "I-01")
+    assert m["I-03"].bordes == {"izq": ("libre", ""), "der": ("libre", "")}
+    assert not any(p.smart for p in d.muros if p.lado == "I") and all(p.smart for p in d.muros if p.lado != "I")
+    # El techo que entra 5 cm en el espesor del muro C se detecta; el múltiplo de 61 es solo un aviso
+    assert not d.alertas, d.alertas
+    assert sum("múltiplo" in a for a in d.avisos) == 2 and any("ALTO" in a for a in d.avisos)
+    assert not any("múltiplo" in a for a in d.alertas)
+    # ALTO (legado) se lee como cota del dintel: ventana de 1,00 x 1,00 con antepecho 1,05
+    v = {x.id: x for x in d.plano.vanos}
+    assert abs(v["V3"].alto - 1.0) < 1e-6 and abs(v["V3"].dintel - 2.05) < 1e-6 and abs(v["V1"].alto - 2.05) < 1e-6
+    assert not any("revisar DINTEL" in a for a in d.alertas)
+    # Cada bloque queda asociado a su vano aunque el punto de inserción caiga al costado
+    assert all(v.alto is not None for v in d.plano.vanos)
+    from sip.proceso import generar
+    out = tmp / "salida_escalon"
+    generar(ruta, "Escalón", "auto", out, log=lambda t: None)
+    assert (out / "hojas_taller.pdf").stat().st_size > 20000
+
+
+def test_secuencia_de_carga():
+    from sip.carga import secuencia, esquinas_disponibles
+    d = calcular(leer_plano(Path(__file__).parent / "pruebas_datos" / "modulo_con_escalon.dxf", "Prueba"))
+    assert "A-F" in esquinas_disponibles(d)
+    items, v0 = secuencia(d, "A-F", True)
+    g = [i.grupo for i in items]
+    codigos = [i.codigo for i in items]
+    assert g[0] == "PARRILLAS DE PISO"
+    assert sorted(codigos[1:]) == sorted([p.codigo for p in d.muros] + [t.codigo for t in d.techos])
+    assert g[-len(d.techos):] == ["TECHO"] * len(d.techos)            # el techo va último
+    assert g.index("TABIQUES INTERIORES") > max(i for i, x in enumerate(g) if x.startswith("PANELES"))
+    assert g.index("PANELES F") > max(i for i, x in enumerate(g) if x == "PANELES A")
+    assert g.index("PANELES B") > max(i for i, x in enumerate(g) if x == "PANELES F")
+    assert [c for c in codigos if c.startswith("A-")][0] == "A-01" and g[1] == "PANELES A"
+    otro, _ = secuencia(d, "SE", False)
+    assert otro[0].grupo.startswith("PANELES")
+
+
+
+def test_lamina_grafica():
+    """Lámina gráfica: revestimientos desde capas, tabique de durlock, sanitarios y piso."""
+    from sip.lamina import Modelo, CONFIG_BASE, cadenas, hoja_lamina
+    d0 = correr(base())
+    m = d0.plano.modulo
+
+    def agregar(doc, msp):
+        x = m.x0 + m.ancho_x * 0.6
+        msp.add_lwpolyline([(x, m.y0 + 0.09), (x + 0.1, m.y0 + 0.09), (x + 0.1, m.y1 - 0.09), (x, m.y1 - 0.09)],
+                           close=True, dxfattribs={"layer": "TABIQUE_DURLOCK"})
+        msp.add_lwpolyline([(x, m.y0 + 0.5), (x + 0.1, m.y0 + 0.5), (x + 0.1, m.y0 + 1.3), (x, m.y0 + 1.3)],
+                           close=True, dxfattribs={"layer": "VANO"})
+        bl = msp.add_blockref("VANO_BLOQUE", (x + 0.05, m.y0 + 0.9), dxfattribs={"layer": "VANO"})
+        bl.add_auto_attribs({"TIPO": "P", "DINTEL": "2.05", "ANTEPECHO": "0"})
+        msp.add_circle((m.x0 + 0.5, m.y0 + 0.5), 0.2, dxfattribs={"layer": "SANITARIOS"})
+        msp.add_line((x + 0.1, m.y0 + 2.0), (x + 0.1, m.y0 + 3.0), dxfattribs={"layer": "REV_INT_CERAMICO"})
+        msp.add_line((m.x0 + 0.3, m.y0 + 0.3), (m.x0 + 0.3, m.y0 + 1.3), dxfattribs={"layer": "PISO"})
+    d = correr(modificar(base(), "lamina.dxf", agregar))
+    assert len(d.plano.tabiques_durlock) == 1 and len(d.plano.sanitarios) == 1 and len(d.plano.piso) == 1
+    assert not any("no toca ningún panel" in a for a in d.alertas), d.alertas
+    assert len(d.muros) == len(d0.muros)                     # el durlock no entra al despiece
+    mo = Modelo(d.plano, dict(CONFIG_BASE))
+    por_letra = {mu.letra: mu for mu in mo.muros}
+    assert any(mat == "wpc" for mat, _, _ in por_letra["C"].ext)          # de la plantilla
+    assert por_letra["A"].int_ == [("omega", 0.0, por_letra["A"].largo)] or por_letra["A"].int_[0][0] == "omega"
+    assert por_letra["D"].int_ == [("sip", 0.0, por_letra["D"].largo)]  # sin línea: OSB visto
+    assert len(mo.bandas_tab) == 1                                       # cerámico sobre el tabique
+    assert len(mo.locales) == 2
+    cad = cadenas(mo)
+    assert sum(c["total"] for c in cad.values()) == 2                    # solo dos totales
+    fig, avisos = hoja_lamina(d.plano, {}, "01/01/2026")
+    assert not avisos, avisos
+    fig.savefig(tmp / "lamina.pdf")
 
 
 if __name__ == "__main__":

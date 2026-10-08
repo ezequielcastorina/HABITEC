@@ -8,6 +8,7 @@ from typing import Optional
 import ezdxf
 
 from . import config as C
+from .contorno import construir
 from .modelo import MarcaRevestimiento, Plano, Rect, VanoLeido
 
 FACTOR_UNIDAD = {"m": 1.0, "cm": 0.01, "mm": 0.001}
@@ -85,17 +86,26 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
         unidades = u
     f = FACTOR_UNIDAD[unidades]
 
-    # --- Módulo -----------------------------------------------------------
-    modulos = []
+    # --- Módulo (contorno de lados horizontales y verticales) -----------------------------
+    contornos = []
     for e in msp.query(f'LWPOLYLINE POLYLINE[layer=="{C.CAPA_MODULO}"]'):
-        r = _rect(e, f, avisos, "Módulo")
-        if r:
-            modulos.append(r)
-    if not modulos:
-        raise ValueError(f"No hay un rectángulo cerrado en la capa {C.CAPA_MODULO}.")
-    if len(modulos) > 1:
-        avisos.append(f"Hay {len(modulos)} polilíneas en {C.CAPA_MODULO}; se usa la primera (un archivo = un módulo).")
-    modulo = modulos[0]
+        pts = [(x * f, y * f) for x, y in _puntos(e)]
+        if not _es_cerrada(e):
+            if len(pts) > 3 and abs(pts[0][0] - pts[-1][0]) < 1e-6 and abs(pts[0][1] - pts[-1][1]) < 1e-6:
+                pts = pts[:-1]
+            else:
+                avisos.append("Módulo: polilínea abierta (se ignora).")
+                continue
+        if len(pts) >= 4:
+            contornos.append(pts)
+    if not contornos:
+        raise ValueError(f"No hay una polilínea cerrada en la capa {C.CAPA_MODULO}.")
+    if len(contornos) > 1:
+        avisos.append(f"Hay {len(contornos)} polilíneas en {C.CAPA_MODULO}; se usa la primera (un archivo = un módulo).")
+    contorno, lados = construir(contornos[0])
+    xs = [p[0] for p in contorno]
+    ys = [p[1] for p in contorno]
+    modulo = Rect(min(xs), min(ys), max(xs), max(ys))
 
     # --- Caída ---------------------------------------------------------------
     # Se toma el segmento más largo de la capa (el "cuerpo" de la flecha);
@@ -130,6 +140,67 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
         if r:
             techos.append(r)
 
+    durlock: list[Rect] = []
+    for e in msp.query(f'LWPOLYLINE POLYLINE[layer=="{C.CAPA_TABIQUE_DURLOCK}"]'):
+        r = _rect(e, f, avisos, "Tabique de durlock")
+        if r:
+            durlock.append(r)
+
+    # Lámina gráfica: sanitarios, puertas (hoja y arco) y electricidad se dibujan tal cual
+    # (cualquier entidad o bloque; se aplana a polilíneas).
+    from ezdxf import path as _path
+
+    def _aplanar(ent, destino):
+        if ent.dxftype() == "INSERT":
+            for sub in ent.virtual_entities():
+                _aplanar(sub, destino)
+            return
+        if ent.dxftype() in ("TEXT", "MTEXT", "ATTRIB", "ATTDEF", "HATCH", "DIMENSION", "POINT"):
+            return
+        try:
+            pa = _path.make_path(ent)
+        except Exception:                                      # noqa: BLE001
+            return
+        for sub in pa.sub_paths():
+            pts = [(q.x * f, q.y * f) for q in sub.flattening(0.01 / f)]
+            if len(pts) >= 2:
+                cerrado = sub.is_closed or (len(pts) > 2 and math.dist(pts[0], pts[-1]) < 1e-6)
+                destino.append((pts, cerrado))
+    sanitarios, puertas, electricidad, piso = [], [], [], []
+    for e in msp.query(f'*[layer=="{C.CAPA_PISO}"]'):
+        if e.dxftype() == "HATCH":
+            if e.dxf.solid_fill:
+                continue
+            try:
+                from ezdxf.render import hatching as _hatching
+                for a_, b_ in _hatching.hatch_entity(e):
+                    piso.append((((a_.x * f, a_.y * f), (b_.x * f, b_.y * f)), False))
+            except Exception:                                  # noqa: BLE001
+                avisos.append("No se pudo leer un sombreado de la capa PISO (se ignora).")
+        else:
+            _aplanar(e, piso)
+    piso = [(list(pts), c) for pts, c in piso]
+    for capa, destino in ((C.CAPA_SANITARIOS, sanitarios), (C.CAPA_PUERTA_GIRO, puertas),
+                          (C.CAPA_ELECTRICIDAD, electricidad)):
+        for e in msp.query(f'*[layer=="{capa}"]'):
+            _aplanar(e, destino)
+    # Revestimientos: líneas en capas REV_EXT_<material> / REV_INT_<material>
+    revestimientos = []
+    for e in msp.query("LINE LWPOLYLINE POLYLINE"):
+        capa = e.dxf.layer.upper()
+        for pref, cara in ((C.PREFIJO_REV_EXT, "EXT"), (C.PREFIJO_REV_INT, "INT")):
+            if capa.startswith(pref) and len(capa) > len(pref):
+                clave = capa[len(pref):].lower()
+                if e.dxftype() == "LINE":
+                    segs = [((e.dxf.start.x, e.dxf.start.y), (e.dxf.end.x, e.dxf.end.y))]
+                else:
+                    pts = _puntos(e)
+                    if _es_cerrada(e) and pts:
+                        pts = pts + [pts[0]]
+                    segs = list(zip(pts, pts[1:]))
+                for a_, b_ in segs:
+                    revestimientos.append((cara, clave, (a_[0] * f, a_[1] * f), (b_[0] * f, b_[1] * f)))
+
     # --- Vanos ----------------------------------------------------------------------
     rect_vanos: list[Rect] = []
     for e in msp.query(f'LWPOLYLINE POLYLINE[layer=="{C.CAPA_VANO}"]'):
@@ -141,17 +212,26 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
     vanos: list[VanoLeido] = []
     # Los vanos se numeran de izquierda a derecha y de arriba hacia abajo
     rect_vanos.sort(key=lambda r: (round(-r.centro[1], 3), r.centro[0]))
+    # Cada bloque con atributos se asocia al vano que lo contiene; si el punto de inserción quedó
+    # al costado (los vanos en muros son franjas de 9 cm y es fácil errar), al más cercano que
+    # esté a menos de 30 cm y todavía no tenga bloque.
+    def distancia(r: Rect, x: float, y: float) -> float:
+        return math.hypot(max(r.x0 - x, 0.0, x - r.x1), max(r.y0 - y, 0.0, y - r.y1))
+    pares = sorted(((distancia(r, ins.dxf.insert.x * f, ins.dxf.insert.y * f), i, j)
+                    for i, r in enumerate(rect_vanos) for j, ins in enumerate(inserts_vano)))
+    marca_de: dict[int, object] = {}
+    usados: set[int] = set()
+    for dist, i, j in pares:
+        if dist > 0.30 or i in marca_de or j in usados:
+            continue
+        marca_de[i] = inserts_vano[j]
+        usados.add(j)
+    alto_legado = False
     for i, r in enumerate(rect_vanos, start=1):
         v = VanoLeido(id=f"V{i}", rect=r)
-        cx, cy = r.centro
-        marca = None
-        for ins in inserts_vano:
-            px, py = ins.dxf.insert.x * f, ins.dxf.insert.y * f
-            if r.contiene(px, py):
-                marca = ins
-                break
+        marca = marca_de.get(i - 1)
         if marca is None:
-            v.avisos.append("Sin bloque con atributos (TIPO, ALTO, ANTEPECHO) dentro del vano.")
+            v.avisos.append("Sin bloque con atributos (TIPO, DINTEL, ANTEPECHO) dentro del vano.")
         else:
             at = _atributos(marca)
             tipo = at.get("TIPO", "V").strip().upper()
@@ -159,8 +239,13 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
                 v.avisos.append(f"TIPO '{tipo}' desconocido (usar {', '.join(C.TIPOS_VANO)}); se toma ventana.")
                 tipo = "V"
             v.tipo = tipo
-            alto = _num(at.get("ALTO", ""))
-            v.alto = alto * f if alto is not None else None
+            texto_dintel = at.get("DINTEL")
+            if texto_dintel is None and "ALTO" in at:
+                # Bloques con el atributo viejo: se carga ahí la cota del dintel (ej. 2.05)
+                texto_dintel = at["ALTO"]
+                alto_legado = True
+            dintel = _num(texto_dintel or "")
+            v.dintel = dintel * f if dintel is not None else None
             ante = _num(at.get("ANTEPECHO", ""))
             if tipo in C.TIPOS_HASTA_PISO:
                 v.antepecho = 0.0
@@ -168,9 +253,19 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
                 v.antepecho = ante * f
             else:
                 v.avisos.append("Falta ANTEPECHO; se toma 0.")
-        if v.alto is None:
-            v.avisos.append("Falta ALTO del vano; no se puede calcular el vano de corte.")
+            if v.dintel is not None:
+                v.alto = v.dintel - v.antepecho
+                if v.alto <= C.TOL:
+                    v.avisos.append(f"El dintel ({v.dintel:.3f} m) no queda por encima del antepecho ({v.antepecho:.3f} m).")
+                    v.alto = None
+        if v.alto is None and marca is not None and v.dintel is None:
+            v.avisos.append("Falta DINTEL (cota del borde superior de la abertura); no se puede calcular el vano de corte.")
         vanos.append(v)
+
+    notas: list[str] = []
+    if alto_legado:
+        notas.append("Los bloques de vano usan el atributo ALTO; se toma como cota del dintel (altura del borde superior "
+                     "de la abertura desde el piso). Conviene renombrarlo DINTEL en la definición del bloque.")
 
     # --- Revestimiento (smart panel) -------------------------------------------------------
     marcas: list[MarcaRevestimiento] = []
@@ -189,4 +284,6 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
 
     return Plano(proyecto=proyecto, modulo=modulo, caida_hacia=caida,
                  paneles=paneles, techos=techos, vanos=vanos,
-                 marcas_rev=marcas, avisos=avisos)
+                 marcas_rev=marcas, avisos=avisos, notas=notas, contorno=contorno, lados=lados,
+                 tabiques_durlock=durlock, sanitarios=sanitarios, puertas=puertas,
+                 electricidad=electricidad, revestimientos=revestimientos, piso=piso)
