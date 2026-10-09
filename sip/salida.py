@@ -67,7 +67,7 @@ def planilla_xlsx(d: Despiece, ruta: Path, car=None, fecha: str = "") -> None:
                 c.fill = rojo
     # Solapa con la secuencia de carga del camión
     from .carga import nombre_esquina, secuencia, vertice_arranque
-    items, _v0 = secuencia(d, getattr(car, "esquina", "NO"), getattr(car, "parrillas", "no") == "si")
+    items, _v0 = secuencia(d, getattr(car, "esquina", "NO"))
     wc = wb.create_sheet("Carga camión")
     wc.cell(row=1, column=1, value=f"{d.plano.proyecto} · secuencia de carga del camión").font = Font(bold=True, size=12)
     wc.cell(row=2, column=1, value=f"Esquina de arranque del montaje: {nombre_esquina(d, _v0)}. "

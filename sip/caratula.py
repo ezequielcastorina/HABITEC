@@ -1,4 +1,4 @@
-"""Datos de la carátula (los completa quien emite) y su hoja."""
+"""Datos de la carátula y su hoja. Los revestimientos interior y exterior salen del plano (capas REV_*)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
@@ -29,14 +29,13 @@ SUGERIDOS_EXTERIOR = ["Smart panel", "WPC", "Chapa acanalada", "Otro (detallar)"
 
 @dataclass
 class Caratula:
-    interior: str = ""          # revestimiento interior de muros
+    interior: str = ""          # revestimiento interior de muros (vacío: se lee del plano)
     cielorraso: str = ""        # revestimiento interior de techo
-    exterior: str = ""          # revestimiento exterior
+    exterior: str = ""          # revestimiento exterior (vacío: se lee del plano)
     observaciones: str = ""
     revision: str = "00"
     piel_exterior: str = "smart"   # "smart" o "osb": la cara exterior de los paneles (cambia las hojas)
     esquina: str = "NO"            # esquina de arranque del montaje: letras de sus lados ("A-F") o NO/NE/SO/SE
-    parrillas: str = "no"          # "si" si el camión lleva las parrillas de piso
 
     @classmethod
     def desde(cls, datos) -> "Caratula":
@@ -46,7 +45,6 @@ class Caratula:
         car = cls(**{k: str(datos.get(k, getattr(cls(), k)) or "") for k in asdict(cls())})
         car.piel_exterior = "osb" if car.piel_exterior.strip().lower().startswith("osb") else "smart"
         car.esquina = car.esquina.strip().upper() or "NO"
-        car.parrillas = "si" if car.parrillas.strip().lower() in ("si", "sí", "true", "1") else "no"
         return car
 
 

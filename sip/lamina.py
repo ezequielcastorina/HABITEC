@@ -916,6 +916,47 @@ def _hoja_lamina(plano: Plano, cfg_usuario: dict | None, fecha: str):
     return h.fig, mo.avisos
 
 
+def resumen_revestimientos(plano: Plano, materiales: dict | None = None, piel_exterior: str = "smart") -> dict:
+    """Texto de la carátula sacado del plano (capas REV_EXT_* / REV_INT_*): {"interior": ..., "exterior": ...}.
+
+    Cada material dibujado con los lados donde aparece, por ejemplo «WPC s/ clavaderas (C) · Smart panel en el resto».
+    Si hay un solo material, va solo. Sin líneas: smart panel (u OSB) afuera y OSB visto adentro.
+    """
+    mo = Modelo(plano, {"materiales": materiales or {}})
+    if piel_exterior == "osb":
+        mo.mats[EXT_DEFECTO] = {**mo.mats[EXT_DEFECTO], "nombre": "OSB (sin smart panel)"}
+    letras = [m.letra for m in mo.muros]
+
+    def texto(usos: dict, defecto: str) -> str:
+        if len(usos) == 1:
+            return mo.mats[next(iter(usos))]["nombre"].split(" (sin capa")[0]
+        partes = []
+        for clave, donde in usos.items():
+            nombre = mo.mats[clave]["nombre"].split(" (sin capa")[0]
+            if clave == defecto:
+                partes.append(f"{nombre} en el resto")
+                continue
+            lados = [x for x in letras if x in donde] + (["tabiques"] if "tabiques" in donde else [])
+            partes.append(f"{nombre} ({', '.join(lados)})")
+        return " · ".join(partes)
+
+    ext, int_ = {}, {}
+    for m in mo.muros:
+        for clave, _a, _b in m.ext:
+            ext.setdefault(clave, set()).add(m.letra)
+        for clave, _a, _b in m.int_:
+            int_.setdefault(clave, set()).add(m.letra)
+    if not mo.tabiques.is_empty:
+        for clave, p0, p1 in mo._sueltos:
+            mid = Point((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)
+            if mo.tabiques.distance(mid) <= 0.03:
+                int_.setdefault(clave, set()).add("tabiques")
+    # el material por defecto, al final (lo que se dibujó es lo que importa)
+    orden = lambda d, defecto: dict(sorted(d.items(), key=lambda kv: kv[0] == defecto))
+    return {"exterior": texto(orden(ext, EXT_DEFECTO), EXT_DEFECTO),
+            "interior": texto(orden(int_, INT_DEFECTO), INT_DEFECTO)}
+
+
 def lados_para_web(plano: Plano) -> list[dict]:
     nombres = {"A": "norte", "B": "este", "C": "sur", "D": "oeste"}
     return [{"letra": l.letra, "largo": round(l.largo, 3), "mira": nombres[l.dir]} for l in plano.lados]

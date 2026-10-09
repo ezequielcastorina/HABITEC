@@ -10,8 +10,8 @@ informe de validación.
 Necesita internet solo la primera vez, para bajar Python. Mientras genera las hojas (unos 30 segundos) la pantalla se queda quieta: es normal.
 Se regenera con `python crear_web.py`. La carpeta `web/` es la misma página en versión publicable.
 
-La carpeta `web/` es una página que corre el programa dentro del navegador, sin instalar nada: se arrastra el DXF, se completan el nombre del
-proyecto y los revestimientos de la carátula, y se descargan las hojas (PDF, planilla y ZIP). El plano no se sube a ningún
+La carpeta `web/` es una página que corre el programa dentro del navegador, sin instalar nada: se arrastra el DXF, se completa el nombre del
+proyecto (los revestimientos de la carátula salen del propio plano) y se descargan las hojas (PDF, planilla y ZIP). El plano no se sube a ningún
 servidor: se procesa en la computadora de quien la usa. La primera vez descarga Python y las librerías (unos 40 MB, 10 a 30 segundos);
 después quedan guardadas en el navegador.
 
@@ -32,9 +32,9 @@ Para uso técnico (opcional) sigue existiendo la línea de comandos: `python gen
 ## Carátula
 
 La primera hoja del PDF es la carátula: marca HABITEC, proyecto, fecha de emisión y revisión, dos axonometrías esquemáticas (muros y techo),
-resumen de paneles y los revestimientos que completa quien emite (interior, cielorraso, exterior, observaciones). Lo que queda vacío figura como
-«a definir». Es informativo: no cambia el despiece. En la web son campos; en la consola:
-`--interior "…" --cielorraso "…" --exterior "…" --obs "…" --rev 00`. El logo está embebido en `sip/logo_datos.py`.
+resumen de paneles y los revestimientos. **El interior y el exterior salen del plano** (capas `REV_EXT_…` y `REV_INT_…`, cada material con los lados
+donde va; sin líneas: smart panel afuera y OSB visto adentro). Cielorraso y observaciones los completa quien emite; lo vacío figura como «a definir». Es informativo: no cambia el despiece. En la web son campos; en la consola:
+`--cielorraso "…" --obs "…" --rev 00` (y `--interior` / `--exterior` solo para pisar lo que sale del plano). El logo está embebido en `sip/logo_datos.py`.
 
 **Cara exterior de los paneles** (selector de la web, o `--piel-exterior smart|osb` en consola): es el único campo que sí cambia las hojas.
 Con *smart panel* (por defecto) todos los muros lo llevan; con *OSB* ningún muro lo lleva: las hojas muestran OSB en las dos caras y se omite el machimbrado
@@ -69,8 +69,8 @@ Cada archivo es un único módulo. Todo en rectángulos cerrados, ejes alineados
 | `PANEL` | Un rectángulo por panel de muro (ancho × 90 mm), apoyado sobre el contorno. En las juntas las líneas se superponen. Los paneles que no apoyan sobre el contorno se toman como tabiques interiores |
 | `TECHO` | Un rectángulo por panel de techo, en planta |
 | `VANO` | Rectángulo con la medida de la abertura (**sin huelgo**), superpuesto a los paneles que atraviesa, y dentro de él un bloque `VANO_BLOQUE` |
-| `REV_EXT_CHAPA`, `REV_EXT_WPC` | Solo lámina gráfica. Una línea sobre la cara exterior del muro, en el tramo que lleva ese revestimiento. Sin línea: smart panel |
-| `REV_INT_PLACA`, `_OMEGA`, `_P35`, `_P70`, `_CERAMICO`, `_PVC` | Solo lámina gráfica. Una línea sobre la cara interior del muro (o de un tabique) en el tramo que lleva ese revestimiento. Sin línea: OSB visto |
+| `REV_EXT_CHAPA`, `REV_EXT_WPC` | Lámina gráfica y carátula. Una línea sobre la cara exterior del muro, en el tramo que lleva ese revestimiento. Sin línea: smart panel |
+| `REV_INT_PLACA`, `_OMEGA`, `_P35`, `_P70`, `_CERAMICO`, `_PVC` | Lámina gráfica y carátula. Una línea sobre la cara interior del muro (o de un tabique) en el tramo que lleva ese revestimiento. Sin línea: OSB visto |
 | `TABIQUE_DURLOCK` | Solo lámina gráfica. Un rectángulo por tabique de durlock (con su espesor real). No entra al despiece; las puertas que caen en él no generan alertas |
 | `SANITARIOS` | Solo lámina gráfica. Artefactos y equipamiento (líneas, polilíneas, círculos, elipses o bloques): se dibujan tal cual |
 | `PISO` | Solo lámina gráfica. Sombreado o líneas del piso: se dibujan tal cual, con línea muy fina y tono claro |
@@ -138,9 +138,8 @@ el piso y las zinguerías. Para un revestimiento nuevo se crea la capa en AutoCA
 
 La lámina 3 del PDF (y la solapa «Carga camión» del Excel) da el orden de carga. En obra el camión se descarga formando una pila invertida: lo primero que se carga queda arriba y se monta primero. Por eso el orden de carga es el orden de montaje:
 
-1. Parrillas de piso (solo si se marca «Parrillas de piso en el camión»; a veces las coloca otro equipo).
-2. Muros: primero los dos lados completos que forman la esquina de arranque (p. ej. todo el A y todo el F); después el resto de los lados, uno por uno, en sentido horario.
-3. Tabiques interiores.
-4. Techo, al final (se carga último, se descarga primero y se monta último), ordenado desde la esquina de arranque hacia el lado opuesto.
+1. Muros: primero los dos lados completos que forman la esquina de arranque (p. ej. todo el A y todo el F); después el resto de los lados, uno por uno, en sentido horario.
+2. Tabiques interiores.
+3. Techo, al final (se carga último, se descarga primero y se monta último), ordenado desde la esquina de arranque hacia el lado opuesto.
 
-La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C…). En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F` (y `--parrillas`). También se aceptan NO|NE|SO|SE (esquina convexa más cercana).
+La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C…). En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F`. También se aceptan NO|NE|SO|SE (esquina convexa más cercana).

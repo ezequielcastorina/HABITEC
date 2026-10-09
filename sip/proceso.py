@@ -39,6 +39,20 @@ def carpeta_por_defecto(dxf: str | Path) -> Path:
     return dxf.with_name(dxf.stem + "_hojas")
 
 
+def _revestimientos_del_plano(plano, car: Caratula, materiales=None) -> None:
+    """Completa en la carátula el revestimiento interior y exterior con lo dibujado en las capas REV_*
+    (lo que se escriba a mano, por ejemplo desde la consola, tiene prioridad)."""
+    if car.interior.strip() and car.exterior.strip():
+        return
+    try:
+        from .lamina import resumen_revestimientos
+        r = resumen_revestimientos(plano, materiales, car.piel_exterior)
+    except Exception:                                        # noqa: BLE001  (la carátula queda «a definir»)
+        return
+    car.interior = car.interior.strip() or r["interior"]
+    car.exterior = car.exterior.strip() or r["exterior"]
+
+
 def generar(dxf: str | Path, proyecto: str, unidades: str = "auto",
             salida: str | Path | None = None, solo_validar: bool = False,
             log: Callable[[str], None] = print, caratula=None) -> Resultado:
@@ -47,6 +61,7 @@ def generar(dxf: str | Path, proyecto: str, unidades: str = "auto",
 
     plano = leer_plano(dxf, proyecto, unidades)
     car = Caratula.desde(caratula)
+    _revestimientos_del_plano(plano, car, (caratula or {}).get("materiales") if isinstance(caratula, dict) else None)
     d = calcular(plano, car.piel_exterior)
     informe_txt(d, out / "informe_validacion.txt", car)
 
@@ -85,7 +100,7 @@ def generar(dxf: str | Path, proyecto: str, unidades: str = "auto",
         fig.savefig(out / "plano_nomenclatura.png", dpi=110)
         pdf.savefig(fig)
         plt.close(fig)
-        fig = hoja_carga(d, fecha, car.esquina, car.parrillas == "si", f"Hoja 3 de {total}")
+        fig = hoja_carga(d, fecha, car.esquina, f"Hoja 3 de {total}")
         fig.savefig(out / "secuencia_carga_camion.pdf")
         pdf.savefig(fig)
         plt.close(fig)

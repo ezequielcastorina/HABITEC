@@ -2,8 +2,9 @@
 
 Regla: en obra el camión se descarga formando una pila invertida, así que lo primero que se carga queda
 arriba y se monta primero. El orden de carga es entonces el orden de montaje:
-parrillas de piso (si van), muros desde la esquina de arranque, tabiques interiores y, al final, el techo
-(se carga último, se descarga primero y se monta último).
+muros desde la esquina de arranque, tabiques interiores y, al final, el techo
+(se carga último, se descarga primero y se monta último). Las parrillas de piso no figuran: si van en el
+camión, el equipo ya sabe que se cargan antes que todo.
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ ESQUINAS = {"NO": "arriba a la izquierda", "NE": "arriba a la derecha",
 
 @dataclass
 class Item:
-    grupo: str            # título del grupo: "PARRILLAS DE PISO", "ESQUINA DE ARRANQUE A-F", "PANELES A", ...
+    grupo: str            # título del grupo: "ESQUINA DE ARRANQUE A-F", "PANELES A", ...
     codigo: str
     medidas: str
     detalle: str
@@ -63,7 +64,7 @@ def vertice_arranque(d: Despiece, esquina: str):
     return min(_vertices_convexos(d), key=lambda v: math.hypot(v[0] - cx, v[1] - cy))
 
 
-def secuencia(d: Despiece, esquina: str = "NO", parrillas: bool = False) -> tuple[list[Item], tuple]:
+def secuencia(d: Despiece, esquina: str = "NO") -> tuple[list[Item], tuple]:
     v0 = vertice_arranque(d, esquina)
     llega0, sale0 = lados_de_la_esquina(d, v0)
     nombre = nombre_esquina(d, v0)
@@ -98,9 +99,6 @@ def secuencia(d: Despiece, esquina: str = "NO", parrillas: bool = False) -> tupl
         elif lt == sale0:
             ps.sort(key=pos)
         orden += [(f"PANELES {lt}", p) for p in ps]
-    if parrillas:
-        m = d.plano.modulo
-        items.append(Item("PARRILLAS DE PISO", "Parrilla de piso", f"{mm(m.ancho_x)}×{mm(m.alto_y)}", "módulo completo"))
 
     def det_muro(p):
         o = []
@@ -122,9 +120,9 @@ def secuencia(d: Despiece, esquina: str = "NO", parrillas: bool = False) -> tupl
     return items, v0
 
 
-def hoja_carga(d: Despiece, fecha: str, esquina: str = "NO", parrillas: bool = False, pagina: str = ""):
+def hoja_carga(d: Despiece, fecha: str, esquina: str = "NO", pagina: str = ""):
     fig, ax = nueva_hoja()
-    items, v0 = secuencia(d, esquina, parrillas)
+    items, v0 = secuencia(d, esquina)
     nombre = nombre_esquina(d, v0)
     llega0, sale0 = lados_de_la_esquina(d, v0)
     cuadro_titulo(ax, d.plano.proyecto, "CARGA", "", None, fecha, pagina)

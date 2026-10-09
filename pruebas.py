@@ -259,17 +259,17 @@ def test_secuencia_de_carga():
     from sip.carga import secuencia, esquinas_disponibles
     d = calcular(leer_plano(Path(__file__).parent / "pruebas_datos" / "modulo_con_escalon.dxf", "Prueba"))
     assert "A-F" in esquinas_disponibles(d)
-    items, v0 = secuencia(d, "A-F", True)
+    items, v0 = secuencia(d, "A-F")
     g = [i.grupo for i in items]
     codigos = [i.codigo for i in items]
-    assert g[0] == "PARRILLAS DE PISO"
-    assert sorted(codigos[1:]) == sorted([p.codigo for p in d.muros] + [t.codigo for t in d.techos])
+    assert "PARRILLAS DE PISO" not in g
+    assert sorted(codigos) == sorted([p.codigo for p in d.muros] + [t.codigo for t in d.techos])
     assert g[-len(d.techos):] == ["TECHO"] * len(d.techos)            # el techo va último
     assert g.index("TABIQUES INTERIORES") > max(i for i, x in enumerate(g) if x.startswith("PANELES"))
     assert g.index("PANELES F") > max(i for i, x in enumerate(g) if x == "PANELES A")
     assert g.index("PANELES B") > max(i for i, x in enumerate(g) if x == "PANELES F")
-    assert [c for c in codigos if c.startswith("A-")][0] == "A-01" and g[1] == "PANELES A"
-    otro, _ = secuencia(d, "SE", False)
+    assert [c for c in codigos if c.startswith("A-")][0] == "A-01" and g[0] == "PANELES A"
+    otro, _ = secuencia(d, "SE")
     assert otro[0].grupo.startswith("PANELES")
 
 
@@ -314,3 +314,20 @@ if __name__ == "__main__":
         if nombre.startswith("test_"):
             f()
             print("OK ", nombre)
+
+
+def test_revestimientos_desde_el_plano(tmp_path):
+    """La carátula toma el interior y el exterior de las capas REV_* (ya no se cargan a mano)."""
+    from generar_ejemplo import crear
+    from sip.lamina import resumen_revestimientos
+    from sip.proceso import generar
+    dxf = tmp_path / "ej.dxf"
+    crear(str(dxf), "m")
+    r = resumen_revestimientos(leer_plano(dxf, "x"))
+    assert r["exterior"].startswith("WPC") and r["exterior"].endswith("Smart panel en el resto")
+    assert "Placa de yeso s/ omega" in r["interior"]
+    liso = resumen_revestimientos(leer_plano(Path(__file__).parent / "pruebas_datos" / "modulo_con_escalon.dxf", "x"))
+    assert liso == {"exterior": "Smart panel", "interior": "OSB visto (SIP)"}
+    generar(dxf, "Casa", "auto", tmp_path / "out", caratula={"materiales": {"wpc": {"nombre": "WPC gris"}}}, log=lambda t: None)
+    txt = (tmp_path / "out" / "informe_validacion.txt").read_text(encoding="utf8")
+    assert "Revestimiento exterior: WPC gris (C) · Smart panel en el resto" in txt

@@ -29,13 +29,12 @@ def main(argv=None):
                     help="Cara exterior de los paneles de muro: smart panel (por defecto) u OSB")
     ap.add_argument("--esquina", default="NO",
                     help="Esquina donde arranca el montaje, por letras (A-F, A-B...) o NO/NE/SO/SE (define la secuencia de carga del camión)")
-    ap.add_argument("--parrillas", action="store_true", help="El camión lleva las parrillas de piso")
     ap.add_argument("--solo-validar", action="store_true", help="Solo lee el plano y emite el informe")
     a = ap.parse_args(argv)
     generar(a.dxf, a.proyecto, a.unidades, a.salida, a.solo_validar, caratula={
         "interior": a.interior, "cielorraso": a.cielorraso, "exterior": a.exterior,
         "observaciones": a.obs, "revision": a.rev, "piel_exterior": a.piel_exterior,
-        "esquina": a.esquina, "parrillas": "si" if a.parrillas else "no"})
+        "esquina": a.esquina})
 
 
 if __name__ == "__main__":

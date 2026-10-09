@@ -74,27 +74,22 @@
   </section>
 
   <section>
-    <h2>2 · Carátula: revestimientos y terminaciones</h2>
-    <p class="nota" style="margin-top:0">Elegí una opción o escribí la tuya. Lo que quede vacío figura como «a definir».</p>
-    <label for="interior">Revestimiento interior</label>
-    <input id="interior" type="text" list="l_int" autocomplete="off">
+    <h2>2 · Carátula y montaje</h2>
+    <p class="nota" style="margin-top:0">Los revestimientos interior y exterior se leen del plano (capas <code>REV_EXT_…</code> y
+      <code>REV_INT_…</code>, ver sección 4): no hay que cargarlos. Lo que quede vacío acá figura como «a definir».</p>
     <label for="cielorraso">Cielorraso</label>
     <input id="cielorraso" type="text" list="l_cie" autocomplete="off">
-    <label for="exterior">Revestimiento exterior</label>
-    <input id="exterior" type="text" list="l_ext" autocomplete="off">
     <div class="fila3">
       <div><label for="obs">Observaciones</label><input id="obs" type="text" autocomplete="off"></div>
       <div><label for="rev">Revisión</label><input id="rev" type="text" value="00" autocomplete="off"></div>
     </div>
     <label for="piel">Cara exterior de los paneles de muro</label>
     <select id="piel"><option value="smart">Smart panel</option><option value="osb">OSB (sin smart panel)</option></select>
-    <p class="nota">Esta opción sí cambia las hojas: con OSB desaparecen el smart panel y el machimbrado exterior. Lo demás de la carátula es informativo.</p>
+    <p class="nota">Esta opción sí cambia las hojas: con OSB desaparecen el smart panel y el machimbrado exterior.</p>
     <label for="esquina">Esquina donde arranca el montaje</label>
     <select id="esquina" disabled><option value="NO">Se completa al cargar el plano</option></select>
-    <label for="parrillas">Parrillas de piso en el camión</label>
-    <select id="parrillas"><option value="no">No (las coloca otro equipo)</option><option value="si">Sí, van en el camión</option></select>
-    <p class="nota">Definen la secuencia de carga del camión (lámina 3 del PDF y solapa «Carga camión» del Excel): primero las parrillas, después las dos caras de esa esquina (por ejemplo A-F), luego los paneles lado por lado en sentido horario (A, B, C…), los tabiques y al final el techo.</p>
-    <datalist id="l_int"></datalist><datalist id="l_cie"></datalist><datalist id="l_ext"></datalist>
+    <p class="nota">Define la secuencia de carga del camión (lámina 3 del PDF y solapa «Carga camión» del Excel): primero las dos caras de esa esquina (por ejemplo A-F), luego los paneles lado por lado en sentido horario (A, B, C…), los tabiques y al final el techo.</p>
+    <datalist id="l_cie"></datalist>
   </section>
 
   <section>
@@ -151,18 +146,16 @@
 <script>
 "use strict";
 const SUG = {
-  l_int: ["Placa de yeso (Durlock) sobre perfil de 35 mm", "Placa de yeso (Durlock) sobre perfil de 70 mm",
-          "Placa de yeso (Durlock) sobre omega", "Placa de yeso pegada directo", "SIP visto hacia el interior",
+  l_cie: ["Placa de yeso (Durlock) sobre perfil de 35 mm", "Placa de yeso (Durlock) sobre perfil de 70 mm",
+          "Placa de yeso (Durlock) sobre omega", "Placa de yeso pegada directo", "Sin cielorraso (SIP visto)",
           "Combinado según instalaciones (detallar)"],
-  l_ext: ["Smart panel", "WPC", "Chapa acanalada", "Otro (detallar)"],
 };
-SUG.l_cie = SUG.l_int.concat(["Sin cielorraso (SIP visto)"]);
 for (const [id, items] of Object.entries(SUG)) {
   document.getElementById(id).innerHTML = items.map((t) => `<option value="${t}">`).join("");
 }
 
 const $ = (id) => document.getElementById(id);
-const CAMPOS = ["proyecto", "unidades", "interior", "cielorraso", "exterior", "obs", "rev", "piel", "esquina", "parrillas"];
+const CAMPOS = ["proyecto", "unidades", "cielorraso", "obs", "rev", "piel", "esquina"];
 let dxf = null;            // {nombre, datos: ArrayBuffer}
 let listo = false;
 let ocupado = false;
@@ -393,10 +386,10 @@ function correr(soloValidar) {
   const proyecto = $("proyecto").value.trim();
   if (!proyecto) { setEstado("Escribí el nombre del proyecto.", true); $("proyecto").focus(); return; }
   ocupado = true; refrescar();
-  const caratula = { interior: $("interior").value.trim(), cielorraso: $("cielorraso").value.trim(),
-                     exterior: $("exterior").value.trim(), observaciones: $("obs").value.trim(),
+  // interior y exterior: los arma el programa con las capas REV_* del plano (con los nombres de la tabla de la sección 4)
+  const caratula = { cielorraso: $("cielorraso").value.trim(), observaciones: $("obs").value.trim(),
                      revision: $("rev").value.trim() || "00", piel_exterior: $("piel").value,
-                     esquina: $("esquina").value, parrillas: $("parrillas").value };
+                     esquina: $("esquina").value, materiales: cfgLamina().materiales };
   const copia = dxf.datos.slice(0);
   worker.postMessage({ tipo: "generar", dxf: copia, proyecto, unidades: $("unidades").value, caratula, soloValidar }, [copia]);
 }
