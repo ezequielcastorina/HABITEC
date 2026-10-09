@@ -12,7 +12,9 @@ y cada artefacto sanitario. Salen del mismo DXF que la lámina gráfica:
 * Vistas interiores: una por cara de muro y de tabique, con revestimientos, tabiques que llegan, vanos,
   bocas y ejes; cotas acumuladas desde el extremo izquierdo y alturas desde el piso.
 
-Las cotas se toman a la cara del SIP o del tabique (obra gruesa, antes de revestir). Medidas en metros.
+Las cotas van al revestimiento terminado (al SIP o al tabique donde no hay revestimiento). Medidas en metros.
+Las vistas muestran la pendiente del techo: altura libre C.ALTO_INTERIOR_ALTO junto al muro alto y
+C.ALTO_PANEL_BAJO junto al de la caída.
 """
 from __future__ import annotations
 
@@ -285,7 +287,8 @@ class Obra:
             t["largo"] = max(x1 - x0, y1 - y0)
         self.tabs = tabs
         self.libre = mo.cara_sip.difference(mo.tabiques)      # el aire del módulo (obra gruesa)
-        self.borde = self.libre.boundary
+        self.libre_fin = mo.libre                             # el aire con los revestimientos puestos
+        self.borde = self.libre_fin.boundary                  # las cotas van al revestimiento terminado
         # códigos de revestimiento: R1, R2… en el orden de la tabla de materiales; el OSB visto no lleva
         usados = []
         for m in mo.muros:
@@ -300,6 +303,75 @@ class Obra:
         self.caras = self._caras()
         self.bocas = self._bocas()
         self.ejes = self._ejes()
+        for c in self.caras:
+            self._a_terminado(c)
+
+    def z_interior(self, p):
+        """Altura libre bajo el techo: ALTO_INTERIOR_ALTO junto al muro alto y ALTO_PANEL_BAJO junto al de la caída."""
+        alto, bajo = C.ALTO_INTERIOR_ALTO, C.ALTO_PANEL_BAJO
+        c = self.mo.caida
+        if c is None:
+            return alto
+        pr = [_dot(q, c) for q in self.mo.cara_sip.exterior.coords]
+        lo, hi = min(pr), max(pr)
+        t = (_dot(p, c) - lo) / (hi - lo) if hi > lo else 0.0
+        return alto - (alto - bajo) * min(1.0, max(0.0, t))
+
+    def esp_en(self, c, u):
+        """Espesor del revestimiento de la cara c en la posición u."""
+        return max([self.mo.mats.get(m, {}).get("espesor", 0.0) for m, a, b in c["revs"] if a - 1e-6 <= u <= b + 1e-6]
+                   or [0.0])
+
+    def _a_terminado(self, c):
+        """Pasa la cara al revestimiento terminado: se mide una línea apenas por delante de la cara terminada;
+        sus extremos son las esquinas terminadas (nuevo origen de cotas) y sus cortes, los tabiques con su revestimiento."""
+        d = max([self.mo.mats.get(m, {}).get("espesor", 0.0) for m, _, _ in c["revs"]] or [0.0]) + 0.004
+        sonda = LineString([_mas(c["A"], c["nf"], d), _mas(c["B"], c["nf"], d)]).intersection(self.libre_fin)
+        tramos = sorted((min(self.u(c, q) for q in g.coords), max(self.u(c, q) for q in g.coords))
+                        for g in getattr(sonda, "geoms", [sonda])
+                        if not g.is_empty and g.geom_type == "LineString" and g.length > 0.005)
+        if not tramos:
+            return
+        f0, f1 = tramos[0][0], tramos[-1][1]
+        for t in c["tabs"]:                                  # cada tabique, con el ancho del hueco que deja
+            for (a0, a1), (b0, _) in zip(tramos, tramos[1:]):
+                if a1 - 0.03 <= t["a"] <= b0 + 0.03 or a1 - 0.03 <= t["b"] <= b0 + 0.03:
+                    t["a"], t["b"] = a1, b0
+                    break
+        L = f1 - f0
+        c["A"] = _mas(c["A"], c["r"], f0)
+        c["B"] = _mas(c["A"], c["r"], L)
+        c["L"] = L
+        c["tramos"] = [(a - f0, b - f0) for a, b in tramos]
+        c["revs"] = [(m, max(0.0, a - f0), min(L, b - f0)) for m, a, b in c["revs"] if min(L, b - f0) - max(0.0, a - f0) > 0.005]
+        if c["revs"]:
+            m0, _, b0 = c["revs"][0]
+            c["revs"][0] = (m0, 0.0, b0)
+            m1, a1, _ = c["revs"][-1]
+            c["revs"][-1] = (m1, a1, L)
+        c["tabs"] = [dict(t, a=t["a"] - f0, b=t["b"] - f0) for t in c["tabs"]]
+        # un cambio de revestimiento que cae contra un tabique se cuenta en la cara terminada del tabique
+        def ajustar(v):
+            for t in c["tabs"]:
+                if t["a"] - 0.02 <= v <= t["b"] + 0.02:
+                    return t["a"] if v < (t["a"] + t["b"]) / 2 else t["b"]
+            return v
+        c["revs"] = [(m, ajustar(a), ajustar(b)) for m, a, b in c["revs"]]
+        c["vanos"] = [dict(v, a=v["a"] - f0, b=v["b"] - f0) for v in c["vanos"]]
+        for it in c["bocas"] + c["ejes"]:
+            it["u"] = min(L, max(0.0, it["u"] - f0))
+        c["z0"], c["z1"] = self.z_interior(c["A"]), self.z_interior(c["B"])
+
+    def tramo(self, p, d, largo=60.0):
+        """Desde p en la dirección d: (primer punto, último punto) del aire terminado que se cruza primero.
+        Desde adentro de un tabique, son sus dos caras terminadas: la propia y la de enfrente."""
+        g = LineString([p, _mas(p, d, largo)]).intersection(self.libre_fin)
+        segs = [gg for gg in getattr(g, "geoms", [g]) if not gg.is_empty and gg.geom_type == "LineString"]
+        if not segs:
+            return None
+        sg = min(segs, key=lambda q: min(math.dist(p, q.coords[0]), math.dist(p, q.coords[-1])))
+        a, b = sorted([sg.coords[0], sg.coords[-1]], key=lambda q: math.dist(p, q))
+        return a, b
 
     def cod_rev(self, mat):
         return "DL" if mat == "durlock" else self.codigos.get(mat, "OSB")
@@ -645,30 +717,39 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
         horiz = (x1 - x0) >= (y1 - y0)
         mid = ((x0 + x1) / 2, (y0 + y1) / 2)
         lados = [(0, 1), (0, -1)] if horiz else [(1, 0), (-1, 0)]
+        eje = (1, 0) if horiz else (0, 1)
+
         def aire(s):                                         # el largo va del lado con más lugar
-            h_ = obra.rayo(_mas(mid, s, t["esp"] / 2 + 0.002), s)
-            return h_[0] if h_ else 0.0
+            tr = obra.tramo(mid, s)
+            return math.dist(*tr) if tr else 0.0
         s1 = max(lados, key=aire)
         s2 = (-s1[0], -s1[1])
-        if horiz:
-            ya = y1 if s1[1] > 0 else y0
-            a, b = lm.T((x0, ya)), lm.T((x1, ya))
+        # largo terminado: el de sus caras de ese lado (de revestimiento a revestimiento)
+        caras_t = [c for c in obra.caras if c["tab"] is t and c["nf"] == s1]
+        if caras_t:
+            pr = [_dot(q, eje) for c in caras_t for q in (c["A"], c["B"])]
+            lo, hi = min(pr), max(pr)
+            off = t["esp"] / 2 + max(obra.esp_en(c, u) for c in caras_t for u in (0.0, c["L"]))
         else:
-            xa = x1 if s1[0] > 0 else x0
-            a, b = lm.T((xa, y0)), lm.T((xa, y1))
-        _cadena(ax, [a, b], s1, 4.5, [_f(t["largo"])])
+            lo, hi = (x0, x1) if horiz else (y0, y1)
+            off = t["esp"] / 2
+        t["largo_fin"] = hi - lo
+        base = mid[1] if horiz else mid[0]
+        def punto(v):
+            return (v, base) if horiz else (base, v)
+        a, b = lm.T(_mas(punto(lo), s1, off)), lm.T(_mas(punto(hi), s1, off))
+        _cadena(ax, [a, b], s1, 4.5, [_f(hi - lo)])
         cuarto = (x0 + (x1 - x0) * 0.22, mid[1]) if horiz else (mid[0], y0 + (y1 - y0) * 0.22)
         P = _mas(lm.T(_mas(cuarto, s2, t["esp"] / 2)), s2, 3.0)
         ax.text(P[0], P[1], t["codigo"], fontsize=7.5, fontweight="bold", ha="center", va="center", zorder=13,
                 bbox=dict(boxstyle="round,pad=0.25", fc="white", ec=NEGRO, lw=0.5))
         if g.distance(mo.cara_sip.exterior) > 0.02:
-            # tabique que no toca ningún muro: distancia a las caras más cercanas, de través y a lo largo
-            eje = (1, 0) if horiz else (0, 1)
-            for s, o in [(s, _mas(mid, s, t["esp"] / 2 + 0.002)) for s in lados] + \
-                        [(e, _mas(mid, e, t["largo"] / 2 + 0.002)) for e in (eje, (-eje[0], -eje[1]))]:
-                hit = obra.rayo(o, s)
-                if hit and hit[0] > 0.03:
-                    _cota_simple(ax, lm.T(o), lm.T(hit[1]), _f(hit[0]))
+            # tabique que no toca ningún muro: de su cara terminada a la cara terminada más cercana,
+            # de través y a lo largo
+            for d_ in lados + [eje, (-eje[0], -eje[1])]:
+                tr = obra.tramo(mid, d_)
+                if tr and math.dist(*tr) > 0.03:
+                    _cota_simple(ax, lm.T(tr[0]), lm.T(tr[1]), _f(math.dist(*tr)))
     # referencias
     x, y = Z_X1 - COL, Z_Y1
     filas = []
@@ -683,7 +764,10 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
     filas = []
     for t in obra.tabs:
         tipo = "SIP" if t["tipo"] == "SIP" else "Durlock"
-        filas.append(f"{t['codigo']}  {tipo} · espesor {_f(t['esp'])} · largo {_f(t['largo'])}")
+        esp_fin = t["esp"] + sum(max([obra.esp_en(c, u) for c in obra.caras if c["tab"] is t and c["nf"] == s_
+                                      for u in (0.0, c["L"])] or [0.0]) for s_ in ((0, 1), (0, -1), (1, 0), (-1, 0)))
+        filas.append(f"{t['codigo']}  {tipo} · espesor {_f(esp_fin)} terminado ({_f(t['esp'])} de obra) · "
+                      f"largo {_f(t.get('largo_fin', t['largo']))}")
     if not filas:
         filas = ["Sin tabiques."]
 
@@ -701,9 +785,9 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
     ax.text(x + 11, y - 1.3, "Tabique de durlock", fontsize=7, va="center")
     y -= 9
     _leyenda(ax, x, y, "NOTAS", [
-        "Cotas a la cara del SIP o del tabique (obra gruesa, antes de revestir).",
-        "Por fuera de cada muro: cadena medida sobre su cara interior (esquinas, cambios de revestimiento "
-        "y caras de los tabiques que llegan).",
+        "Cotas al revestimiento terminado; donde no hay revestimiento, al SIP o a la placa del tabique.",
+        "Por fuera de cada muro: cadena medida sobre su cara interior terminada (esquinas, cambios de "
+        "revestimiento y caras terminadas de los tabiques que llegan).",
         "Junto a cada tabique: su largo. Si no toca ningún muro, también su distancia a la cara más cercana.",
         "El código de cada tramo va del lado del local. Ver alturas y bocas en las vistas interiores.",
     ])
@@ -834,8 +918,8 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
         filas.append(f"{it['codigo']:<5} {it['e'].artefacto} · {donde}")
     if filas:
         y = _leyenda(ax, x, y, "BOCAS Y EJES (código · altura · cara)", filas, fs=6.6, paso=3.6)
-    notas = ["Cajas y ejes acotados a eje sobre la cara del SIP o del tabique donde van (obra gruesa), de esquina "
-             "a esquina. Las bocas de techo, a eje desde las caras más cercanas en las dos direcciones.",
+    notas = ["Cajas y ejes acotados a eje sobre la cara donde van, desde las caras terminadas (revestimiento, o SIP "
+             "si no hay), de esquina a esquina. Las bocas de techo, a eje desde las caras más cercanas en las dos direcciones.",
              "h: altura del eje de la caja desde el piso (base del panel).",
              "Las cañerías van solo dibujadas: se ajustan en obra."]
     if any(it["b"].por_defecto for it in obra.bocas):
@@ -966,7 +1050,7 @@ def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
     ax.text(X(0) - 2.0, y1, "caras", fontsize=5.8, ha="right", va="center", color=GRIS)
     # alturas desde el piso (a la derecha)
     xc = X(L) + 6.0
-    hs = set(alturas) | {round(z1, 3)}
+    hs = set(alturas) | {round(z0, 3), round(z1, 3)}
     for v in c["vanos"]:
         hs |= {round(v["z0"], 3), round(v["z1"], 3)}
     hs = sorted(h for h in hs if h > 1e-6)

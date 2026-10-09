@@ -328,6 +328,8 @@ def test_obra_in_situ():
         rect(1.60, 1.60, 2.96, 1.70, "TABIQUE_DURLOCK")                 # baño en L: dos tiras
         rect(1.60, 0.09, 1.70, 1.60, "TABIQUE_DURLOCK")
         msp.add_line((1.70, 1.60), (2.96, 1.60), dxfattribs={"layer": "REV_INT_CERAMICO"})
+        msp.add_line((2.96, 0.09), (2.96, 1.60), dxfattribs={"layer": "REV_INT_CERAMICO"})   # muro B en el baño
+        msp.add_line((1.70, 0.09), (1.70, 1.60), dxfattribs={"layer": "REV_INT_CERAMICO"})   # tabique, lado baño
         msp.add_blockref("ELEC_LLAVE", (1.70, 1.50), dxfattribs={"layer": "ELECTRICIDAD"})   # sin ALTURA
         i = msp.add_blockref("SAN_EJE", (2.20, 0.35), dxfattribs={"layer": "SAN_EJE"})
         i.add_auto_attribs({"ARTEFACTO": "Inodoro"})
@@ -339,9 +341,15 @@ def test_obra_in_situ():
     assert llave["b"].por_defecto and abs(llave["b"].altura - 1.10) < 1e-9
     assert llave["cara"]["tab"] is not None and llave["cara"]["nf"] == (1, 0)    # cara del tabique hacia B
     ino = next(it for it in ob.ejes if it["e"].artefacto == "Inodoro")
-    assert ino["cara"]["nombre"] == "MURO C" and abs(ino["u"] - (2.96 - 2.20)) < 1e-6
+    # cotas al terminado: el muro C arranca en el cerámico del muro B (1,2 cm)
+    assert ino["cara"]["nombre"] == "MURO C" and abs(ino["u"] - (2.96 - 0.012 - 2.20)) < 1e-6
+    tb = next(t for t in ino["cara"]["tabs"])
+    assert abs((tb["b"] - tb["a"]) - 0.112) < 1e-6                    # tabique de 10 cm + cerámico
+    # pendiente: 2,31 junto al muro alto (C) y 2,22 junto al de la caída (A)
+    muro_b = next(c for c in ob.caras if c["nombre"] == "MURO B")
+    assert {round(muro_b["z0"], 3), round(muro_b["z1"], 3)} == {2.22, 2.31}
     muro_c = next(c for c in ob.caras if c["nombre"] == "MURO C")
-    assert [round(t["a"], 2) for t in muro_c["tabs"]] == [1.26]         # el tabique llega al muro C
+    assert [round(t["a"], 3) for t in muro_c["tabs"]] == [1.236]   # cara terminada del tabique (cerámico en B y en el tabique)
     cer = next(c for c in ob.caras if c["corto"].startswith("TB") and c["nf"] == (0, -1))
     assert any(ob.cod_rev(m) == "R2" for m, _, _ in cer["revs"]), cer["revs"]   # cerámico sobre el tabique
     figs, avisos = hojas_obra(pl, {}, "01/01/2026")

@@ -10,6 +10,7 @@ ESPESOR_PANEL = 0.09        # 9 mm OSB + 70 mm EPS + 9 mm OSB (se toma 90 mm)
 LARGO_MAX_PANEL = 2.44      # largo máximo de panel (placa de 1,22 x 2,44)
 ALTO_PANEL = 2.44           # alto de los paneles de muro (3 lados)
 ALTO_PANEL_BAJO = 2.22      # alto del muro del lado de la caída
+ALTO_INTERIOR_ALTO = 2.31   # altura libre interior junto al muro alto (bajo el techo); junto al bajo, ALTO_PANEL_BAJO
 MODULO_BASE = 0.61          # el módulo crece de a 61 cm
 
 # --- Rebajes y vanos ---------------------------------------------------------
