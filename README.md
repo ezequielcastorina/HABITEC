@@ -127,7 +127,8 @@ fila o de a dos por fila, lo que deje todo más grande.
 * Cotas, todas por fuera y en un tono más claro: dos totales del módulo (sin revestimiento) y una fila por lado de medidas interiores
   terminadas, sin repetir valores.
 * Vistas de las caras con aberturas (o de todas): VISTA FRENTE (la cara con la puerta), LATERAL y POSTERIOR. Sin pendiente
-  visible: los laterales van rectos al alto del lado alto y la cara de la caída al del lado bajo (panel + piso). Zinguería inferior
+  visible: los laterales van rectos al alto del lado alto y la cara de la caída al del lado bajo: el alto del panel (2,44 / 2,22), porque el piso interior arranca al nivel del panel
+  y la parrilla queda tapada por la zinguería inferior. Antepecho y dintel de los vanos se miden desde la base. Zinguería inferior
   completa, de esquina por encima y superior; dos espesores de línea (grueso: zinguerías, vanos y tierra; muy fino y claro: tramas).
 * Rótulo: logo, MÓDULO + nombre, área del módulo y fecha de emisión.
 

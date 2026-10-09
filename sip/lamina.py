@@ -67,7 +67,6 @@ EXT_DEFECTO, INT_DEFECTO = "smart", "sip"
 
 CONFIG_BASE = {
     "materiales": {},                # pisa o suma revestimientos (espesor, patrón, paso)
-    "espesor_piso": 0.10,            # base del módulo -> piso interior (parrilla + fenólico, aprox.)
     "zingueria_inferior": 0.15,
     "zingueria_superior": 0.03,
     "zingueria_esquina": 0.15,
@@ -290,12 +289,13 @@ class Modelo:
         pb = self.esq_fin(i, m.esp("EXT", m.largo), mn.esp("EXT", 0.0))
         return m.s_de(pa), m.s_de(pb)
 
-    # alturas: laterales rectos al alto del lado alto; la cara de la caída, al del lado bajo
+    # alturas: laterales rectos al alto del lado alto; la cara de la caída, al del lado bajo.
+    # El piso interior arranca al nivel del panel (la parrilla queda tapada por la zinguería inferior).
     def alto(self):
-        return self.cfg["espesor_piso"] + C.ALTO_PANEL
+        return C.ALTO_PANEL
 
     def bajo(self):
-        return self.cfg["espesor_piso"] + C.ALTO_PANEL_BAJO
+        return C.ALTO_PANEL_BAJO
 
     def altura_cara(self, i):
         if self.plano.caida_hacia and self.muros[i].dir == self.plano.caida_hacia:
@@ -609,17 +609,16 @@ def pintar_cara(ax, mo: Modelo, i, F0, zb):
         _rect(ax, F, sb - ze, sb, zi, h - zs, zb + 4, lw=LW_V_GRUESO)
     if zs > 0:
         _rect(ax, F, sa, sb, h - zs, h, zb + 4, lw=LW_V_GRUESO)
-    # aberturas: las que llegan al piso arrancan justo arriba de la zinguería inferior
-    piso = cfg["espesor_piso"]
+    # aberturas: antepecho y dintel desde la base; las que llegan al piso arrancan justo arriba de la zinguería inferior
     for it in mo.vanos:
         if it["muro"] != i:
             continue
         v = it["v"]
         if v.tipo in C.TIPOS_HASTA_PISO:
-            z0 = max(piso, zi)
-            z1 = piso + (v.alto or 2.0)
+            z0 = zi
+            z1 = v.alto or 2.0
         else:
-            z0 = piso + v.antepecho
+            z0 = v.antepecho
             z1 = z0 + (v.alto or 1.0)
         _abertura(ax, F, v.tipo, it["a"], it["b"], z0, z1, zb + 5)
     ax.add_patch(MPoly([F(sa, 0), F(sb, 0), F(sb, h), F(sa, h)], closed=True, fc="none", ec=TINTA, lw=LW_V_GRUESO,
@@ -842,7 +841,7 @@ def hoja_lamina(plano: Plano, cfg_usuario: dict | None, fecha: str):
 
 def _hoja_lamina(plano: Plano, cfg_usuario: dict | None, fecha: str):
     cfg = {**CONFIG_BASE, **{k: v for k, v in (cfg_usuario or {}).items() if v is not None}}
-    for k in ("espesor_piso", "zingueria_inferior", "zingueria_superior", "zingueria_esquina"):
+    for k in ("zingueria_inferior", "zingueria_superior", "zingueria_esquina"):
         cfg[k] = float(cfg[k])
     mo = Modelo(plano, cfg)
     vistas = vistas_a_dibujar(mo)

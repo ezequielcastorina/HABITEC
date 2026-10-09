@@ -116,7 +116,6 @@
       <code>TABIQUE_DURLOCK</code>, <code>SANITARIOS</code>, <code>PISO</code> y <code>ELECTRICIDAD</code>.
       Todo viene en la plantilla de AutoCAD.</p>
     <div class="fila4">
-      <div><label for="lamPiso">Piso interior sobre la base (cm)</label><input id="lamPiso" type="number" step="1" min="0"></div>
       <div><label for="lamZi">Zinguería inferior (cm)</label><input id="lamZi" type="number" step="0.5" min="0"></div>
       <div><label for="lamZs">Zinguería superior (cm)</label><input id="lamZs" type="number" step="0.5" min="0"></div>
       <div><label for="lamZe">Zinguería de esquina (cm)</label><input id="lamZe" type="number" step="0.5" min="0"></div>
@@ -305,7 +304,7 @@ const MAT_BASE = {
 };
 const PATRONES = { tablas: "Tablas verticales", chapa: "Chapa (líneas de a pares)", liso: "Liso" };
 const POR_DEFECTO = ["smart", "sip"];
-const LAM_DEF = { piso: 10, zi: 15, zs: 3, ze: 15, vistas: "con_aberturas" };
+const LAM_DEF = { zi: 15, zs: 3, ze: 15, vistas: "con_aberturas" };
 let lam = Object.assign({ materiales: JSON.parse(JSON.stringify(MAT_BASE)) }, LAM_DEF);
 try {
   const g = JSON.parse(localStorage.getItem("habitec_lamina2") || "null");
@@ -349,7 +348,7 @@ function agregarMat(cara) {
 $("bMatExt").onclick = () => agregarMat("EXT");
 $("bMatInt").onclick = () => agregarMat("INT");
 $("bMatReset").onclick = () => { lam.materiales = JSON.parse(JSON.stringify(MAT_BASE)); guardarLam(); pintarMateriales(); };
-[["lamPiso", "piso"], ["lamZi", "zi"], ["lamZs", "zs"], ["lamZe", "ze"], ["lamVistas", "vistas"]].forEach(([id, k]) => {
+[["lamZi", "zi"], ["lamZs", "zs"], ["lamZe", "ze"], ["lamVistas", "vistas"]].forEach(([id, k]) => {
   $(id).value = lam[k];
   $(id).addEventListener("input", () => { lam[k] = $(id).type === "number" ? (+$(id).value || 0) : $(id).value; guardarLam(); });
 });
@@ -361,7 +360,7 @@ function cfgLamina() {
     mats[k] = { nombre: m.nombre, espesor: (+m.espesor || 0) / 100, patron: m.cara === "INT" ? "liso" : m.patron,
                 paso: (+m.paso || 0) / 100 };
   }
-  return { materiales: mats, espesor_piso: lam.piso / 100, zingueria_inferior: lam.zi / 100,
+  return { materiales: mats, zingueria_inferior: lam.zi / 100,
            zingueria_superior: lam.zs / 100, zingueria_esquina: lam.ze / 100, vistas: lam.vistas };
 }
 $("bLamina").onclick = () => {
