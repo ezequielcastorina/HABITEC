@@ -38,13 +38,14 @@ M = 6.0                                   # margen del marco
 BANDA = 24.0                              # rótulo superior
 Z_X0, Z_X1 = 14.0, W - 14.0               # zona de dibujo
 Z_Y0, Z_Y1 = 13.0, H - M - BANDA - 4.0
-COL = 108.0                               # columna de referencias a la derecha de las plantas
+COL = 100.0                               # columna de referencias a la derecha de las plantas
 
 GRIS_SIP = "#b8b8b8"
 GRIS_SIP_CLARO = "#e2e2e2"
 GRIS_LINEA = "#8a8a8a"
-TRAMAS = ["////", "\\\\\\\\", "xx", "...", "++", "---", "|||", "oo"]
 TR_EMBUTIDA = (0, (3.0, 1.6))
+ROJO = "#d0101a"                          # todo lo de electricidad (bocas, cañerías y sus cotas)
+GUIA_ROJA = dict(GUIA, color="#e8868b")
 TR_EJE = (0, (6, 1.5, 1, 1.5))
 NOMBRE_DIR = {v: k for k, v in DIRS.items()}
 ESCALAS_PLANTA = (20, 25, 50, 75, 100, 150, 200)
@@ -145,20 +146,22 @@ def _texto_rot(ax, x, y, s, ang, fs=6.5, **kw):
     return a
 
 
-def _tick(ax, P, z=11):
-    ax.plot([P[0] - 0.8, P[0] + 0.8], [P[1] - 0.8, P[1] + 0.8], color=NEGRO, lw=0.7, zorder=z)
+def _tick(ax, P, z=11, color=NEGRO):
+    ax.plot([P[0] - 0.8, P[0] + 0.8], [P[1] - 0.8, P[1] + 0.8], color=color, lw=0.7, zorder=z)
 
 
-def _cadena(ax, pts, out, d, textos, fs=6.5):
+def _cadena(ax, pts, out, d, textos, fs=6.5, color=NEGRO, desde=None):
     """Cadena de cotas: `pts` son puntos de papel alineados sobre la arista medida; la línea de cota va
-    a `d` mm en la dirección `out` (versor de papel). `textos[k]` va entre pts[k] y pts[k+1]."""
+    a `d` mm en la dirección `out` (versor de papel). `textos[k]` va entre pts[k] y pts[k+1]. Las líneas guía
+    (de puntos) salen de `desde[k]` si se da (el elemento acotado), si no de pts[k]."""
     Q = [_mas(p, out, d) for p in pts]
-    for p, q in zip(pts, Q):
+    guia = GUIA_ROJA if color != NEGRO else GUIA
+    for p, q in zip(desde or pts, Q):
         e = _mas(q, out, 1.2)
-        ax.plot([p[0], e[0]], [p[1], e[1]], zorder=10, **GUIA)
-    ax.plot([Q[0][0], Q[-1][0]], [Q[0][1], Q[-1][1]], color=NEGRO, lw=0.55, zorder=11)
+        ax.plot([p[0], e[0]], [p[1], e[1]], zorder=10, **guia)
+    ax.plot([Q[0][0], Q[-1][0]], [Q[0][1], Q[-1][1]], color=color, lw=0.55, zorder=11)
     for q in Q:
-        _tick(ax, q)
+        _tick(ax, q, color=color)
     alterna = 0
     for k in range(len(Q) - 1):
         a, b = Q[k], Q[k + 1]
@@ -172,7 +175,7 @@ def _cadena(ax, pts, out, d, textos, fs=6.5):
         if lejos > 1.0:
             alterna += 1
         m = ((a[0] + b[0]) / 2 + arriba[0] * lejos, (a[1] + b[1]) / 2 + arriba[1] * lejos)
-        _texto_rot(ax, m[0], m[1], textos[k], ang, fs=fs)
+        _texto_rot(ax, m[0], m[1], textos[k], ang, fs=fs, color=color)
 
 
 def _angulo_legible(ang):
@@ -200,7 +203,8 @@ def _cota_simple(ax, a, b, texto, fs=6.5, desp=None):
 
 # --------------------------------------------------------------------------------------------
 # Símbolos (papel, mm)
-def simbolo(ax, tipo, x, y, r=1.6, z=14):
+def simbolo(ax, tipo, x, y, r=1.6, z=14, color=ROJO):
+    NEGRO = color                                            # noqa: N806 (los símbolos eléctricos van en rojo)
     kw = dict(color=NEGRO, lw=0.6, zorder=z + 1, solid_capstyle="butt")
     if tipo == "TABLERO":
         w, h = r * 1.5, r * 0.95
@@ -573,23 +577,94 @@ class Obra:
 
 # --------------------------------------------------------------------------------------------
 # Plantas
-def _escala_planta(obra, ancho_mm, alto_mm, margen=34.0):
-    """La mayor escala que deja `margen` mm para las cotas alrededor del módulo."""
-    x0, y0, x1, y1 = obra.mo.cara_ext.bounds
-    for e in ESCALAS_PLANTA:
-        k = 1000.0 / e
-        if (x1 - x0) * k + margen <= ancho_mm and (y1 - y0) * k + margen <= alto_mm:
-            return e
-    return ESCALAS_PLANTA[-1]
+PRIMERA_FILA = 7.0                         # mm desde el módulo hasta la primera fila de cotas
+PASO_FILA = 8.0                            # mm entre filas
 
 
-def _lienzo_planta(ax, obra):
+class Filas:
+    """Cotas por fuera del módulo: filas de cadenas en cada lado (A arriba, B derecha, C abajo, D izquierda).
+    Cada fila junta puntos del modelo; se acotan proyectados sobre el lado, con líneas guía de puntos desde
+    cada elemento."""
+
+    def __init__(self, obra, inicio):
+        self.obra, self.inicio = obra, inicio
+        self.filas = {dl: [] for dl in DIRS}
+
+    def agregar(self, dl, puntos, color=NEGRO):
+        """Una fila con una sola cadena por todos los puntos."""
+        r = (-DIRS[dl][1], DIRS[dl][0])
+        if len({round(_dot(p, r), 3) for p in puntos}) >= 2:
+            self.filas[dl].append(([puntos], color))
+
+    def agregar_pares(self, dl, pares, color=NEGRO):
+        """Cotas desde una cara de referencia hasta un eje: las que salen de la misma cara (hacia el mismo lado)
+        forman una cadena; las cadenas que se pisan van a otra fila."""
+        r = (-DIRS[dl][1], DIRS[dl][0])
+        grupos = {}
+        for item, ref in pares:
+            ui, ur = _dot(item, r), _dot(ref, r)
+            if abs(ui - ur) < 0.005:
+                continue
+            grupos.setdefault((round(ur, 3), ui > ur), [ref]).append(item)
+        self.agregar_cadenas(dl, list(grupos.values()), color)
+
+    def agregar_cadenas(self, dl, cadenas, color=NEGRO):
+        """Varias cadenas independientes en un lado; las que se pisan van a otra fila."""
+        r = (-DIRS[dl][1], DIRS[dl][0])
+        cadenas = sorted((g for g in cadenas if len({round(_dot(q, r), 3) for q in g}) >= 2),
+                         key=lambda g: min(_dot(q, r) for q in g))
+        carriles = []
+        for g in cadenas:
+            a, b = min(_dot(q, r) for q in g), max(_dot(q, r) for q in g)
+            for carril in carriles:
+                if a >= carril["fin"] + 0.04:
+                    carril["cadenas"].append(g)
+                    carril["fin"] = b
+                    break
+            else:
+                carriles.append({"fin": b, "cadenas": [g]})
+        for carril in carriles:
+            self.filas[dl].append((carril["cadenas"], color))
+
+    def margenes(self):
+        return {dl: (self.inicio + PASO_FILA * (len(f) - 1) + 6.0) if f else self.inicio - PRIMERA_FILA + 4.0
+                for dl, f in self.filas.items()}
+
+    def dibujar(self, lm):
+        ext = list(self.obra.mo.cara_ext.exterior.coords)
+        for dl, filas in self.filas.items():
+            n = DIRS[dl]
+            r = (-n[1], n[0])
+            dmax = max(_dot(q, n) for q in ext)
+            for i, (cadenas, color) in enumerate(filas):
+                d = self.inicio + PASO_FILA * i
+                for puntos in cadenas:
+                    por_u = {}
+                    for p in sorted(puntos, key=lambda p: -_dot(p, n)):      # la guía sale del más cercano al borde
+                        u = round(_dot(p, r), 3)
+                        if not any(abs(u - v) < 0.004 for v in por_u):
+                            por_u[u] = p
+                    us = sorted(por_u)
+                    if len(us) < 2:
+                        continue
+                    base = [lm.T(_mas(_mas((0.0, 0.0), r, u), n, dmax)) for u in us]
+                    _cadena(lm.ax, base, n, d, [_f(b - a) for a, b in zip(us, us[1:])], fs=6.0, color=color,
+                            desde=[lm.T(por_u[u]) for u in us])
+
+
+def _lienzo_planta(ax, obra, filas: Filas):
     ancho, alto = (Z_X1 - COL - 6) - Z_X0, Z_Y1 - Z_Y0
-    e = _escala_planta(obra, ancho, alto)
+    m = filas.margenes()
     x0, y0, x1, y1 = obra.mo.cara_ext.bounds
+    e = ESCALAS_PLANTA[-1]
+    for esc in ESCALAS_PLANTA:                                 # la mayor escala que entra con sus cotas
+        k = 1000.0 / esc
+        if (x1 - x0) * k + m["B"] + m["D"] <= ancho and (y1 - y0) * k + m["A"] + m["C"] <= alto:
+            e = esc
+            break
     k = 1000.0 / e
-    ox = Z_X0 + (ancho - (x1 - x0) * k) / 2
-    oy = Z_Y0 + (alto - (y1 - y0) * k) / 2
+    ox = Z_X0 + m["D"] + (ancho - (x1 - x0) * k - m["B"] - m["D"]) / 2
+    oy = Z_Y0 + m["C"] + (alto - (y1 - y0) * k - m["A"] - m["C"]) / 2
     return Lamina(ax, e, ox, oy, x0, y0)
 
 
@@ -639,10 +714,10 @@ def _leyenda(ax, x, y, titulo, filas, ancho=COL - 4, fs=7.0, paso=4.2):
             fila(ax, x, y)
             y -= paso
             continue
-        txt = fila
+        txt, color = fila if isinstance(fila, tuple) else (fila, NEGRO)
         n = int(ancho / (fs * 0.19))
         for k, ln in enumerate(_partir(txt, n)):
-            ax.text(x, y, ln, fontsize=fs, ha="left", va="top", color=NEGRO)
+            ax.text(x, y, ln, fontsize=fs, ha="left", va="top", color=color)
             y -= paso
     return y - 3
 
@@ -662,7 +737,40 @@ def _partir(txt, n):
 def planta_revestimientos(obra: Obra, fecha, pagina):
     mo = obra.mo
     fig, ax = _hoja("Planta 1 · Revestimientos interiores y tabiques", obra.plano.proyecto, fecha, pagina, None)
-    lm = _lienzo_planta(ax, obra)
+    # por fuera: 1ª fila, la cadena de cada muro; después, una cadena por tabique (sus caras terminadas y su
+    # largo, desde la cara terminada más cercana): de través y a lo largo, en x abajo y en y a la izquierda
+    filas = Filas(obra, PRIMERA_FILA + PASO_FILA)
+    por_lado = {"C": [], "D": []}
+    for t in obra.tabs:
+        caras_t = [c for c in obra.caras if c["tab"] is t]
+        if not caras_t:
+            continue
+        x0, y0, x1, y1 = t["geom"].bounds
+        mid = ((x0 + x1) / 2, (y0 + y1) / 2)
+        vertical = (x1 - x0) < (y1 - y0)
+        a = (1, 0) if vertical else (0, 1)                   # de través
+        e = (0, 1) if vertical else (1, 0)                   # a lo largo
+        # de través: las dos caras terminadas y la cara más cercana enfrente
+        traves = [_mas(_mas(c["A"], c["r"], c["L"] / 2), c["nf"], obra.esp_en(c, c["L"] / 2))
+                  for c in caras_t if c["nf"] in (a, (-a[0], -a[1]))]
+        trs = [tr for tr in (obra.tramo(mid, a), obra.tramo(mid, (-a[0], -a[1]))) if tr]
+        if trs:
+            traves.append(min(trs, key=lambda tr: math.dist(*tr))[1])
+        # a lo largo: los extremos terminados y, si un extremo queda libre, la cara más cercana
+        pr = sorted((q for c in caras_t for q in (c["A"], c["B"])), key=lambda q: _dot(q, e))
+        largo = [pr[0], pr[-1]]
+        libres = []
+        for d_, ext in ((e, pr[-1]), ((-e[0], -e[1]), pr[0])):
+            tr = obra.tramo(mid, d_)
+            if tr and abs(_dot(tr[0], d_) - _dot(ext, d_)) < 0.03:
+                libres.append(tr)
+        if libres:
+            largo.append(min(libres, key=lambda tr: math.dist(*tr))[1])
+        por_lado["C" if vertical else "D"].append(traves)
+        por_lado["D" if vertical else "C"].append(largo)
+    for dl, cadenas in por_lado.items():
+        filas.agregar_cadenas(dl, cadenas)
+    lm = _lienzo_planta(ax, obra, filas)
     _base_planta(lm, obra, 1)
     k = lm.k
     # códigos de revestimiento sobre cada tramo de muro
@@ -710,7 +818,7 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
         P = _mas(lm.T(_mas(mid, n, mo.mats[mat].get("espesor", 0) + 0.02)), n, 1.4)
         _texto_rot(ax, P[0], P[1], obra.cod_rev(mat), math.atan2(d[1], d[0]), fs=6.5,
                    va="bottom" if n[1] > 0 or n[0] < 0 else "top", fontweight="bold")
-    # tabiques: largo, código y (si no tocan ningún muro) distancia a la cara más cercana
+    # tabiques: código (las cotas van por fuera)
     for t in obra.tabs:
         g = t["geom"]
         x0, y0, x1, y1 = g.bounds
@@ -719,37 +827,19 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
         lados = [(0, 1), (0, -1)] if horiz else [(1, 0), (-1, 0)]
         eje = (1, 0) if horiz else (0, 1)
 
-        def aire(s):                                         # el largo va del lado con más lugar
+        def aire(s):                                         # el código va del lado con más lugar
             tr = obra.tramo(mid, s)
             return math.dist(*tr) if tr else 0.0
-        s1 = max(lados, key=aire)
-        s2 = (-s1[0], -s1[1])
-        # largo terminado: el de sus caras de ese lado (de revestimiento a revestimiento)
-        caras_t = [c for c in obra.caras if c["tab"] is t and c["nf"] == s1]
+        s2 = min(lados, key=aire)
+        caras_t = [c for c in obra.caras if c["tab"] is t]   # largo terminado: el de sus caras
         if caras_t:
             pr = [_dot(q, eje) for c in caras_t for q in (c["A"], c["B"])]
-            lo, hi = min(pr), max(pr)
-            off = t["esp"] / 2 + max(obra.esp_en(c, u) for c in caras_t for u in (0.0, c["L"]))
-        else:
-            lo, hi = (x0, x1) if horiz else (y0, y1)
-            off = t["esp"] / 2
-        t["largo_fin"] = hi - lo
-        base = mid[1] if horiz else mid[0]
-        def punto(v):
-            return (v, base) if horiz else (base, v)
-        a, b = lm.T(_mas(punto(lo), s1, off)), lm.T(_mas(punto(hi), s1, off))
-        _cadena(ax, [a, b], s1, 4.5, [_f(hi - lo)])
+            t["largo_fin"] = max(pr) - min(pr)
         cuarto = (x0 + (x1 - x0) * 0.22, mid[1]) if horiz else (mid[0], y0 + (y1 - y0) * 0.22)
         P = _mas(lm.T(_mas(cuarto, s2, t["esp"] / 2)), s2, 3.0)
         ax.text(P[0], P[1], t["codigo"], fontsize=7.5, fontweight="bold", ha="center", va="center", zorder=13,
                 bbox=dict(boxstyle="round,pad=0.25", fc="white", ec=NEGRO, lw=0.5))
-        if g.distance(mo.cara_sip.exterior) > 0.02:
-            # tabique que no toca ningún muro: de su cara terminada a la cara terminada más cercana,
-            # de través y a lo largo
-            for d_ in lados + [eje, (-eje[0], -eje[1])]:
-                tr = obra.tramo(mid, d_)
-                if tr and math.dist(*tr) > 0.03:
-                    _cota_simple(ax, lm.T(tr[0]), lm.T(tr[1]), _f(math.dist(*tr)))
+    filas.dibujar(lm)
     # referencias
     x, y = Z_X1 - COL, Z_Y1
     filas = []
@@ -788,7 +878,9 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
         "Cotas al revestimiento terminado; donde no hay revestimiento, al SIP o a la placa del tabique.",
         "Por fuera de cada muro: cadena medida sobre su cara interior terminada (esquinas, cambios de "
         "revestimiento y caras terminadas de los tabiques que llegan).",
-        "Junto a cada tabique: su largo. Si no toca ningún muro, también su distancia a la cara más cercana.",
+        "Más afuera, abajo y a la izquierda: una cadena por tabique, de través (sus caras terminadas) y a lo largo "
+        "(sus extremos), desde la cara terminada más cercana. Todas las cotas van por fuera del dibujo, con líneas "
+        "guía de puntos.",
         "El código de cada tramo va del lado del local. Ver alturas y bocas en las vistas interiores.",
     ])
     _escala_pie(ax, lm.esc)
@@ -804,49 +896,62 @@ def _escala_pie(ax, esc):
 def planta_instalaciones(obra: Obra, fecha, pagina):
     fig, ax = _hoja("Planta 2 · Instalaciones: electricidad y ejes sanitarios", obra.plano.proyecto, fecha, pagina,
                     None)
-    lm = _lienzo_planta(ax, obra)
+    # cotas por fuera: en cada lado, una fila de electricidad (roja) y otra de ejes sanitarios. Cada boca o eje
+    # va al lado hacia el que mira su cara, con las esquinas terminadas de esa cara (y los tabiques que llegan);
+    # las de techo y los ejes sueltos, en x abajo y en y a la izquierda, entre las caras más cercanas.
+    filas = Filas(obra, PRIMERA_FILA)
+
+    def lado_de(c):
+        if c["nf"][1] != 0:
+            return "A" if c["nf"][1] < 0 else "C"
+        return "D" if c["nf"][0] > 0 else "B"
+
+    def juntar(items, dest):
+        for it in items:
+            c = it["cara"]
+            p = (it["b"].x, it["b"].y) if "b" in it else (it["e"].x, it["e"].y)
+            if c is not None:
+                # el eje y la cara terminada más cercana sobre su cara (esquina o tabique que llega)
+                refs = [0.0, c["L"]] + [v for t in c["tabs"] for v in (t["a"], t["b"])]
+                ref = min(refs, key=lambda v: abs(v - it["u"]))
+                dest.setdefault(lado_de(c), []).append((_mas(c["A"], c["r"], it["u"]), _mas(c["A"], c["r"], ref)))
+            else:
+                for dl, d in (("C", (1, 0)), ("D", (0, 1))):     # techo: en x y en y, a la cara más cercana
+                    ends = [tr[1] for tr in (obra.tramo(p, d), obra.tramo(p, (-d[0], -d[1]))) if tr]
+                    if ends:
+                        dest.setdefault(dl, []).append((p, min(ends, key=lambda q: math.dist(p, q))))
+    elec, san = {}, {}
+    juntar(obra.bocas, elec)
+    juntar(obra.ejes, san)
+    for dl in "ABCD":
+        if dl in elec:
+            filas.agregar_pares(dl, elec[dl], ROJO)
+        if dl in san:
+            filas.agregar_pares(dl, san[dl])
+    lm = _lienzo_planta(ax, obra, filas)
     _base_planta(lm, obra, 2)
-    # cañerías (solo dibujo)
+    # cañerías (solo dibujo, en rojo)
     for pts, vista in obra.plano.canerias:
         if vista:
-            lm.linea(pts, z=8, lw=1.1)
+            lm.linea(pts, z=8, lw=1.1, color=ROJO)
         else:
-            lm.linea(pts, z=8, lw=0.6, ls=TR_EMBUTIDA)
+            lm.linea(pts, z=8, lw=0.6, ls=TR_EMBUTIDA, color=ROJO)
 
-    def cotas_libres(p):
-        """Punto suelto (boca de techo, eje lejos de los muros): a eje en x y en y desde la cara más cercana."""
-        for par in ([(1, 0), (-1, 0)], [(0, 1), (0, -1)]):
-            hits = [h for h in (obra.rayo(p, d) for d in par) if h]
-            if hits and min(hits)[0] >= 0.03:
-                dist, q = min(hits)
-                _cota_simple(ax, lm.T(q), lm.T(p), _f(dist))
-
-    D_CADENA = 6.5                                           # cadena de ejes: a 6,5 mm de la cara, del lado del local
-
-    def rotulo(P, nf, lineas, fs=6.0):
+    def rotulo(P, nf, lineas, fs=6.0, color=NEGRO):
         ha = "left" if nf[0] > 0 else "right" if nf[0] < 0 else "center"
         va = "bottom" if nf[1] > 0 else "top" if nf[1] < 0 else "center"
-        ax.text(P[0], P[1], "\n".join(lineas), fontsize=fs, fontweight="bold", ha=ha, va=va, zorder=13,
+        ax.text(P[0], P[1], "\n".join(lineas), fontsize=fs, fontweight="bold", ha=ha, va=va, zorder=13, color=color,
                 linespacing=1.05, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
 
-    # bocas y ejes sobre una cara: símbolo junto a la cara y una cadena a eje (esquina, ejes, esquina)
+    # bocas y ejes sobre una cara: símbolo junto a la cara terminada y rótulo hacia el local
     for c in obra.caras:
-        items = c["bocas"] + c["ejes"]
-        if not items:
-            continue
         nf = c["nf"]
-        us = {0.0, c["L"]} | {round(it["u"], 4) for it in items}
-        for t in c["tabs"]:                                  # la cadena arranca en cada cara real
-            us |= {round(t["a"], 4), round(t["b"], 4)}
-        us = sorted(us)
-        pts = [lm.T(_mas(c["A"], c["r"], v)) for v in us]
-        _cadena(ax, pts, nf, D_CADENA, [_f(b - a) for a, b in zip(us, us[1:])], fs=6.0)
         for it in c["bocas"]:
             b = it["b"]
             P = _mas(lm.T(_mas(c["A"], c["r"], it["u"])), nf, 2.4)
             simbolo(ax, b.tipo, P[0], P[1], r=1.4)
             alt = _f(b.altura) + ("*" if b.por_defecto else "")
-            rotulo(_mas(P, nf, D_CADENA + 2.2), nf, [it["codigo"], f"h {alt}"])
+            rotulo(_mas(P, nf, 3.0), nf, [it["codigo"], f"h {alt}"], color=ROJO)
         for it in c["ejes"]:
             e = it["e"]
             pie = _mas(c["A"], c["r"], it["u"])
@@ -865,8 +970,7 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
         simbolo(ax, b.tipo, P[0], P[1])
         alt = "techo" if b.altura is None else _f(b.altura) + ("*" if b.por_defecto else "")
         ax.text(P[0] + 2.4, P[1] + 2.0, f"{it['codigo']} {alt}", fontsize=6.2, fontweight="bold", ha="left",
-                va="bottom", zorder=13, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
-        cotas_libres((b.x, b.y))
+                va="bottom", zorder=13, color=ROJO, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
     for it in obra.ejes:
         if it["cara"] is not None:
             continue
@@ -875,14 +979,14 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
         simbolo_eje(ax, P[0], P[1])
         ax.text(P[0] + 3.0, P[1] - 3.0, f"{it['codigo']} {e.artefacto}", fontsize=6.2, fontweight="bold", ha="left",
                 va="top", zorder=13, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
-        cotas_libres((e.x, e.y))
+    filas.dibujar(lm)
     # referencias
     x, y = Z_X1 - COL, Z_Y1
 
     def fila_sim(tipo, txt):
         def f(ax, x, y):
             simbolo(ax, tipo, x + 3, y - 1.5, r=1.5)
-            ax.text(x + 8, y - 1.5, txt, fontsize=7, va="center")
+            ax.text(x + 8, y - 1.5, txt, fontsize=7, va="center", color=ROJO)
         return f
     filas = []
     tipos = []
@@ -896,8 +1000,8 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
 
     def fila_lin(lw, ls, txt):
         def f(ax, x, y):
-            ax.plot([x, x + 6], [y - 1.5, y - 1.5], color=NEGRO, lw=lw, ls=ls)
-            ax.text(x + 8, y - 1.5, txt, fontsize=7, va="center")
+            ax.plot([x, x + 6], [y - 1.5, y - 1.5], color=ROJO, lw=lw, ls=ls)
+            ax.text(x + 8, y - 1.5, txt, fontsize=7, va="center", color=ROJO)
         return f
     filas.append(fila_lin(0.6, TR_EMBUTIDA, "Cañería embutida (solo esquema)"))
     filas.append(fila_lin(1.1, "-", "Cañería vista sobre el módulo"))
@@ -912,14 +1016,16 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
         b = it["b"]
         alt = "techo" if b.altura is None else _f(b.altura) + ("*" if b.por_defecto else "")
         donde = it["cara"]["corto"] if it["cara"] is not None else ("techo" if b.tipo == "CENTRO" else "—")
-        filas.append(f"{it['codigo']:<5} h {alt:<7} {donde}")
+        filas.append((f"{it['codigo']:<5} h {alt:<7} {donde}", ROJO))
     for it in obra.ejes:
         donde = it["cara"]["corto"] if it["cara"] is not None else "—"
         filas.append(f"{it['codigo']:<5} {it['e'].artefacto} · {donde}")
     if filas:
         y = _leyenda(ax, x, y, "BOCAS Y EJES (código · altura · cara)", filas, fs=6.6, paso=3.6)
-    notas = ["Cajas y ejes acotados a eje sobre la cara donde van, desde las caras terminadas (revestimiento, o SIP "
-             "si no hay), de esquina a esquina. Las bocas de techo, a eje desde las caras más cercanas en las dos direcciones.",
+    notas = ["Cotas por fuera del dibujo, a eje de cada caja o artefacto, desde las caras terminadas (revestimiento, o "
+             "SIP si no hay), desde la cara terminada más cercana sobre la que va (esquina o tabique). Cada boca se "
+             "acota del lado hacia el que mira su cara; las de techo, en x abajo y en y a la izquierda. En rojo, "
+             "electricidad.",
              "h: altura del eje de la caja desde el piso (base del panel).",
              "Las cañerías van solo dibujadas: se ajustan en obra."]
     if any(it["b"].por_defecto for it in obra.bocas):
@@ -936,35 +1042,36 @@ TIT = 8.0
 
 
 def _medidas_vista(c, k):
-    filas = 2
+    filas = 3
     top = max(c["z0"], c["z1"])
     ancho = c["L"] * k + 26.0
     alto = top * k + 7.0 + filas * FILA_COTA + 6.0 + TIT
     return ancho, alto
 
 
-def _acumuladas(ax, x0, y, xs_vals, k, guia_desde=None):
-    """Fila de cotas acumuladas: línea base, un tick por valor y el valor (vertical) debajo."""
+def _acumuladas(ax, x0, y, xs_vals, k, guia_desde, color=NEGRO):
+    """Fila de cotas acumuladas: línea base, un tick por valor, el valor (vertical) debajo y una línea guía
+    de puntos desde el elemento (guia_desde: valor -> y de papel donde arranca; si falta, el piso)."""
     vals = sorted(set(round(v, 3) for v in xs_vals))
     if not vals:
         return
+    guia = GUIA_ROJA if color != NEGRO else GUIA
     xa, xb = x0 + vals[0] * k, x0 + vals[-1] * k
-    ax.plot([min(x0, xa), xb], [y, y], color=NEGRO, lw=0.5, zorder=11)
-    ax.plot([x0, x0], [y - 1.4, y + 1.4], color=NEGRO, lw=0.8, zorder=11)       # origen
+    ax.plot([min(x0, xa), xb], [y, y], color=color, lw=0.5, zorder=11)
+    ax.plot([x0, x0], [y - 1.4, y + 1.4], color=color, lw=0.8, zorder=11)       # origen
     ult = -1e9
     for v in vals:
         x = x0 + v * k
         if v > 1e-6:
-            _tick(ax, (x, y))
+            _tick(ax, (x, y), color=color)
         xt = max(x, ult + 2.7)
         ult = xt
         if abs(xt - x) > 0.3:
-            ax.plot([x, xt], [y - 0.6, y - 1.8], color=NEGRO, lw=0.3, zorder=11)
-        ax.text(xt, y - 2.0, _f(v), fontsize=6.0, rotation=90, ha="center", va="top", zorder=12, color=NEGRO)
-        if guia_desde is not None:
-            yg = guia_desde.get(v)
-            if yg is not None:
-                ax.plot([x, x], [yg, y], zorder=9, **GUIA)
+            ax.plot([x, xt], [y - 0.6, y - 1.8], color=color, lw=0.3, zorder=11)
+        ax.text(xt, y - 2.0, _f(v), fontsize=6.0, rotation=90, ha="center", va="top", zorder=12, color=color)
+        yg = guia_desde.get(v, guia_desde.get("piso"))
+        if yg is not None and yg > y + 1.2:
+            ax.plot([x, x], [yg, y + 1.2], zorder=9, **guia)
 
 
 def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
@@ -974,11 +1081,7 @@ def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
     Y = lambda z: y0 + z * k
     zt = lambda u: z0 + (z1 - z0) * (u / L if L else 0)
     # revestimientos
-    for n, (mat, a, b) in enumerate(c["revs"]):
-        if mat in obra.codigos:
-            idx = list(obra.codigos).index(mat)
-            ax.add_patch(MPoly([(X(a), Y(0)), (X(b), Y(0)), (X(b), Y(zt(b))), (X(a), Y(zt(a)))], closed=True,
-                               fc="none", ec="#a8a8a8", lw=0, hatch=TRAMAS[idx % len(TRAMAS)], zorder=2))
+    for mat, a, b in c["revs"]:                              # sin trama: solo el código y el cambio de tramo
         piezas = [(a, b)]
         for t in c["tabs"]:                                  # un rótulo por local: se corta en cada tabique
             piezas = [q for x0, x1 in piezas for q in ((x0, min(x1, t["a"])), (max(x0, t["b"]), x1))
@@ -1025,29 +1128,35 @@ def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
         u, h = bo["u"], b.altura or 0.0
         simbolo(ax, b.tipo, X(u), Y(h), r=1.5)
         ax.text(X(u) + 2.2, Y(h) + 1.6, bo["codigo"] + ("*" if b.por_defecto else ""), fontsize=6.2,
-                fontweight="bold", ha="left", va="bottom", zorder=15,
+                fontweight="bold", ha="left", va="bottom", zorder=15, color=ROJO,
                 bbox=dict(boxstyle="square,pad=0.08", fc="white", ec="none"))
         alturas.setdefault(round(h, 3), []).append(X(u))
         guias[round(u, 3)] = Y(h) - 1.6
-    # cotas acumuladas (desde el extremo izquierdo)
+    # cotas acumuladas (desde el extremo izquierdo), con línea guía de puntos desde cada elemento:
+    # caras (tabiques, revestimientos y vanos), electricidad (en rojo) y ejes sanitarios
     y1 = y0 - 6.0
     fila1 = {0.0, L}
     for _, a, b in c["revs"]:
         fila1 |= {a, b}
     for t in c["tabs"]:
         fila1 |= {t["a"], t["b"]}
+    desde1 = {"piso": Y(0)}
     for v in c["vanos"]:
         fila1 |= {v["a"], v["b"]}
-    _acumuladas(ax, x0, y1, fila1, k)
-    if c["bocas"] or c["ejes"]:
-        y2 = y1 - FILA_COTA - 6.0
-        vals = [bo["u"] for bo in c["bocas"]] + [e["u"] for e in c["ejes"]]
-        for e in c["ejes"]:
-            guias.setdefault(round(e["u"], 3), Y(0))
-        _acumuladas(ax, x0, y2, vals, k, guia_desde={v: g for v, g in guias.items()})
-        ax.text(X(0) - 2.0, y2, "ejes", fontsize=5.8, ha="right", va="center", color=GRIS)
-    yb = y1 - FILA_COTA - 6.0                                # títulos alineados en la fila
+        for u in (v["a"], v["b"]):
+            desde1[round(u, 3)] = min(desde1.get(round(u, 3), 1e9), Y(v["z0"]))
+    _acumuladas(ax, x0, y1, fila1, k, desde1)
     ax.text(X(0) - 2.0, y1, "caras", fontsize=5.8, ha="right", va="center", color=GRIS)
+    yf = y1
+    if c["bocas"]:
+        yf -= FILA_COTA + 6.0
+        _acumuladas(ax, x0, yf, [bo["u"] for bo in c["bocas"]], k, guias, color=ROJO)
+        ax.text(X(0) - 2.0, yf, "electr.", fontsize=5.8, ha="right", va="center", color=ROJO)
+    if c["ejes"]:
+        yf -= FILA_COTA + 6.0
+        _acumuladas(ax, x0, yf, [e["u"] for e in c["ejes"]], k, {"piso": Y(0)})
+        ax.text(X(0) - 2.0, yf, "sanit.", fontsize=5.8, ha="right", va="center", color=GRIS)
+    yb = y1 - 2 * (FILA_COTA + 6.0)                          # títulos alineados en la fila
     # alturas desde el piso (a la derecha)
     xc = X(L) + 6.0
     hs = set(alturas) | {round(z0, 3), round(z1, 3)}
@@ -1056,15 +1165,17 @@ def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
     hs = sorted(h for h in hs if h > 1e-6)
     ax.plot([xc, xc], [Y(0), Y(max(hs))], color=NEGRO, lw=0.5, zorder=11)
     ax.plot([xc - 1.4, xc + 1.4], [Y(0), Y(0)], color=NEGRO, lw=0.8, zorder=11)
+    obra_h = {round(z0, 3), round(z1, 3)} | {round(v[k_], 3) for v in c["vanos"] for k_ in ("z0", "z1")}
     ult = -1e9
     for h in hs:
         y = Y(h)
-        _tick(ax, (xc, y))
+        col = ROJO if h not in obra_h else NEGRO               # alturas de bocas, en rojo
+        _tick(ax, (xc, y), color=col)
         yt = max(y, ult + 2.6)
         ult = yt
-        ax.text(xc + 1.8, yt, _f(h), fontsize=6.0, ha="left", va="center", zorder=12)
+        ax.text(xc + 1.8, yt, _f(h), fontsize=6.0, ha="left", va="center", zorder=12, color=col)
         for xb in alturas.get(h, []):
-            ax.plot([xb + 1.6, xc], [y, y], zorder=9, **GUIA)
+            ax.plot([xb + 1.6, xc], [y, y], zorder=9, **GUIA_ROJA)
     # título
     ax.text(X(0), yb - 13.5, c["nombre"], fontsize=8.5, fontweight="bold", ha="left", va="top", color=NEGRO)
     ax.text(X(0), yb - 18.0, "Vista desde el interior", fontsize=6.5, ha="left", va="top", color=GRIS)
@@ -1109,8 +1220,8 @@ def hojas_vistas(obra: Obra, fecha, n0, total, esc, paginas):
     figs = []
     pie = "  ·  ".join(f"{cod} {obra.mo.mats[m].get('nombre', m)}" for m, cod in obra.codigos.items())
     pie = (pie + "  ·  " if pie else "") + ("OSB: SIP visto  ·  DL: placa del tabique de durlock  ·  Cotas acumuladas desde el extremo izquierdo (fila caras: "
-                                          "tabiques, revestimientos y vanos; fila ejes: bocas y artefactos) y alturas "
-                                          "desde el piso  ·  * altura típica")
+                                          "tabiques, revestimientos y vanos; electr., en rojo: bocas; sanit.: artefactos) y "
+                                          "alturas desde el piso  ·  * altura típica")
     for j, filas in enumerate(paginas):
         fig, ax = _hoja("Vistas interiores", obra.plano.proyecto, fecha, f"Hoja {n0 + j} de {total}", esc, pie)
         usado = sum(max(h for _, _, h in f) for f in filas) + 6.0 * (len(filas) - 1)

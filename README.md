@@ -141,22 +141,25 @@ el piso y las zinguerías. Para un revestimiento nuevo se crea la capa en AutoCA
 
 Sección 5 de la web. Láminas A3 apaisadas, en blanco y negro (mismo lenguaje que las hojas de taller) y a escala (1:25 si
 entra), para que el equipo de obra sepa dónde va cada revestimiento interior, cada tabique, cada boca y cada artefacto.
-Salen del mismo DXF y usan los revestimientos editados en la sección 4 (con sus espesores). Todas las cotas en metros y al
-revestimiento terminado; donde no hay revestimiento, al SIP o a la placa del tabique.
+Salen del mismo DXF y usan los revestimientos editados en la sección 4 (con sus espesores). Todas las cotas en metros, al
+revestimiento terminado (donde no hay revestimiento, al SIP o a la placa del tabique) y por fuera del dibujo, con líneas guía
+de puntos. Todo lo de electricidad (bocas, cañerías, sus cotas y alturas) va en rojo; el resto, en blanco y negro.
 
 1. **Planta 1 · Revestimientos interiores y tabiques.** Código de revestimiento por tramo y por local (R1, R2… con su nombre y
    espesor en la referencia; OSB = SIP visto; DL = placa de un tabique de durlock). Por fuera de cada muro, una cadena medida
-   sobre su cara interior terminada: esquinas, cambios de revestimiento y caras terminadas de los tabiques que llegan. Cada tabique (TB1, TB2…: los
-   paneles alineados forman una tira; uno en L son dos) con su largo y, si no toca ningún muro, su distancia a las caras más
-   cercanas.
+   sobre su cara interior terminada: esquinas, cambios de revestimiento y caras terminadas de los tabiques que llegan. Más
+   afuera, abajo y a la izquierda, una cadena por tabique (TB1, TB2…: los paneles alineados forman una tira; uno en L son dos):
+   de través sus caras terminadas y a lo largo sus extremos, desde la cara terminada más cercana.
 2. **Planta 2 · Instalaciones.** Bocas con su código (TG tablero, TC toma, LL llave, AP aplique, CP caja de pase, C centro) y
-   su altura; cañerías solo dibujadas (de puntos: embutida; continua gruesa: vista); ejes de artefactos (S1, S2…). Las cajas y
-   los ejes de cada cara llevan una cadena a eje de esquina a esquina (cortada en los tabiques); las bocas de techo, cotas a eje
-   en las dos direcciones. Tabla de bocas con altura y cara.
+   su altura; cañerías solo dibujadas (de puntos: embutida; continua gruesa: vista); ejes de artefactos (S1, S2…). Por fuera,
+   en cada lado, filas de electricidad (rojas) y de ejes sanitarios: cada caja o eje, a eje desde la cara terminada más cercana
+   sobre la que va (esquina o tabique), del lado hacia el que mira su cara; las bocas de techo, en x abajo y en y a la
+   izquierda. Las que salen de la misma cara forman una cadena; las que se pisan van a otra fila. Tabla de bocas con altura y cara.
 3. **Vistas interiores.** Una por muro y por cara de tabique, vista desde el local: revestimientos (trama por código), tabiques
-   que llegan, vanos, bocas y ejes. Abajo, dos filas de cotas acumuladas desde el extremo izquierdo (caras: tabiques,
-   cambios de revestimiento y vanos; ejes: bocas y artefactos) y, a la derecha, alturas desde el piso (bocas, antepechos,
-   dinteles y alto del muro). Se ve la pendiente del techo: altura libre de 2,31 junto al muro alto y 2,22 junto al de la
+   que llegan (con trama: son los únicos rayados), vanos, bocas y ejes; los revestimientos, sin trama, con su código y el
+   cambio de tramo. Abajo, filas de cotas acumuladas desde el extremo izquierdo, con línea guía de puntos desde cada elemento
+   (caras: tabiques, cambios de revestimiento y vanos; electr., en rojo: bocas; sanit.: artefactos) y, a la derecha, alturas
+   desde el piso (bocas en rojo, antepechos, dinteles y alto del muro). Se ve la pendiente del techo: altura libre de 2,31 junto al muro alto y 2,22 junto al de la
    caída (`ALTO_INTERIOR_ALTO` y `ALTO_PANEL_BAJO` en `sip/config.py`), en los muros laterales y en los tabiques.
 
 Si un bloque `ELEC_*` no trae `ALTURA` se usa la típica del tipo y sale marcada con `*`: tablero 1,50 · toma 0,30 ·
