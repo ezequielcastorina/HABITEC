@@ -309,6 +309,46 @@ def test_lamina_grafica():
     fig.savefig(tmp / "lamina.pdf")
 
 
+
+def test_obra_in_situ():
+    """Láminas de obra: bocas con altura, cañerías, ejes sanitarios, tabiques (en tiras) y vistas interiores."""
+    from sip.lamina import CONFIG_BASE
+    from sip.obra import Obra, hojas_obra
+    d0 = correr(base())
+    p0 = d0.plano
+    assert len(p0.bocas) == 8 and len(p0.canerias) == 8 and len(p0.ejes_sanitarios) == 1
+    tg = next(b for b in p0.bocas if b.tipo == "TABLERO")
+    assert abs(tg.altura - 1.50) < 1e-9 and not tg.por_defecto
+    assert next(b for b in p0.bocas if b.tipo == "CENTRO").altura is None
+    assert sum(v for _, v in p0.canerias) == 1                        # una cañería vista
+
+    def agregar(doc, msp):
+        def rect(x0, y0, x1, y1, capa):
+            msp.add_lwpolyline([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], close=True, dxfattribs={"layer": capa})
+        rect(1.60, 1.60, 2.96, 1.70, "TABIQUE_DURLOCK")                 # baño en L: dos tiras
+        rect(1.60, 0.09, 1.70, 1.60, "TABIQUE_DURLOCK")
+        msp.add_line((1.70, 1.60), (2.96, 1.60), dxfattribs={"layer": "REV_INT_CERAMICO"})
+        msp.add_blockref("ELEC_LLAVE", (1.70, 1.50), dxfattribs={"layer": "ELECTRICIDAD"})   # sin ALTURA
+        i = msp.add_blockref("SAN_EJE", (2.20, 0.35), dxfattribs={"layer": "SAN_EJE"})
+        i.add_auto_attribs({"ARTEFACTO": "Inodoro"})
+    pl = correr(modificar(base(), "obra.dxf", agregar)).plano
+    ob = Obra(pl, dict(CONFIG_BASE))
+    assert [t["tipo"] for t in ob.tabs] == ["DURLOCK", "DURLOCK"]
+    assert sorted(round(t["largo"], 2) for t in ob.tabs) == [1.36, 1.51]
+    llave = next(it for it in ob.bocas if it["b"].x == 1.70 and it["b"].tipo == "LLAVE")
+    assert llave["b"].por_defecto and abs(llave["b"].altura - 1.10) < 1e-9
+    assert llave["cara"]["tab"] is not None and llave["cara"]["nf"] == (1, 0)    # cara del tabique hacia B
+    ino = next(it for it in ob.ejes if it["e"].artefacto == "Inodoro")
+    assert ino["cara"]["nombre"] == "MURO C" and abs(ino["u"] - (2.96 - 2.20)) < 1e-6
+    muro_c = next(c for c in ob.caras if c["nombre"] == "MURO C")
+    assert [round(t["a"], 2) for t in muro_c["tabs"]] == [1.26]         # el tabique llega al muro C
+    cer = next(c for c in ob.caras if c["corto"].startswith("TB") and c["nf"] == (0, -1))
+    assert any(ob.cod_rev(m) == "R2" for m, _, _ in cer["revs"]), cer["revs"]   # cerámico sobre el tabique
+    figs, avisos = hojas_obra(pl, {}, "01/01/2026")
+    assert len(figs) >= 3 and not avisos, avisos
+    figs[0].savefig(tmp / "obra.pdf")
+
+
 if __name__ == "__main__":
     for nombre, f in list(globals().items()):
         if nombre.startswith("test_"):

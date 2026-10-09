@@ -77,6 +77,13 @@ return async (m) => {
       if (!salida.ok) { postMessage({ tipo: "lamina", salida }); return; }
       const buf = leerArchivo(salida.ruta);
       postMessage({ tipo: "lamina", salida, buf }, [buf]);
+    } else if (m.tipo === "obra") {
+      estado("Dibujando las láminas de obra in situ…");
+      await new Promise((r) => setTimeout(r, 60));
+      const salida = JSON.parse(puente.obra(new Uint8Array(m.dxf), m.proyecto, m.unidades, JSON.stringify(m.cfg)));
+      if (!salida.ok) { postMessage({ tipo: "obra", salida }); return; }
+      const buf = leerArchivo(salida.ruta);
+      postMessage({ tipo: "obra", salida, buf }, [buf]);
     } else if (m.tipo === "plantilla") {
       const ruta = puente.plantilla();
       const buf = leerArchivo(ruta);

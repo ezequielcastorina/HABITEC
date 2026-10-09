@@ -9,7 +9,7 @@ import ezdxf
 
 from . import config as C
 from .contorno import construir
-from .modelo import MarcaRevestimiento, Plano, Rect, VanoLeido
+from .modelo import Boca, EjeSanitario, MarcaRevestimiento, Plano, Rect, VanoLeido
 
 FACTOR_UNIDAD = {"m": 1.0, "cm": 0.01, "mm": 0.001}
 INSUNITS = {4: "mm", 5: "cm", 6: "m"}
@@ -184,6 +184,29 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
                           (C.CAPA_ELECTRICIDAD, electricidad)):
         for e in msp.query(f'*[layer=="{capa}"]'):
             _aplanar(e, destino)
+    # Obra in situ: bocas (bloques ELEC_<TIPO> con ALTURA), cañerías y ejes sanitarios
+    bocas = []
+    for ins in msp.query(f'INSERT[layer=="{C.CAPA_ELECTRICIDAD}"]'):
+        nombre = ins.dxf.name.upper()
+        tipo = nombre[5:] if nombre.startswith("ELEC_") else nombre
+        defecto = C.BOCAS.get(tipo, (None, None, 1.10))[2]
+        alt = _num(_atributos(ins).get("ALTURA", ""))
+        b = Boca(tipo=tipo, x=ins.dxf.insert.x * f, y=ins.dxf.insert.y * f,
+                 altura=alt * f if alt is not None else defecto, por_defecto=alt is None and defecto is not None)
+        if tipo == "CENTRO":
+            b.altura, b.por_defecto = None, False
+        bocas.append(b)
+    canerias = []
+    for capa, vista in ((C.CAPA_CANERIA, False), (C.CAPA_CANERIA_VISTA, True)):
+        tmp = []
+        for e in msp.query(f'*[layer=="{capa}"]'):
+            _aplanar(e, tmp)
+        canerias += [(list(pts), vista) for pts, _ in tmp]
+    ejes = []
+    for ins in msp.query(f'INSERT[layer=="{C.CAPA_SAN_EJE}"]'):
+        art = _atributos(ins).get("ARTEFACTO", "").strip() or "Artefacto"
+        ejes.append(EjeSanitario(artefacto=art, x=ins.dxf.insert.x * f, y=ins.dxf.insert.y * f))
+
     # Revestimientos: líneas en capas REV_EXT_<material> / REV_INT_<material>
     revestimientos = []
     for e in msp.query("LINE LWPOLYLINE POLYLINE"):
@@ -286,4 +309,5 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
                  paneles=paneles, techos=techos, vanos=vanos,
                  marcas_rev=marcas, avisos=avisos, notas=notas, contorno=contorno, lados=lados,
                  tabiques_durlock=durlock, sanitarios=sanitarios, puertas=puertas,
-                 electricidad=electricidad, revestimientos=revestimientos, piso=piso)
+                 electricidad=electricidad, revestimientos=revestimientos, piso=piso,
+                 bocas=bocas, canerias=canerias, ejes_sanitarios=ejes)

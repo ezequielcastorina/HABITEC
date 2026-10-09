@@ -74,7 +74,9 @@ Cada archivo es un único módulo. Todo en rectángulos cerrados, ejes alineados
 | `TABIQUE_DURLOCK` | Solo lámina gráfica. Un rectángulo por tabique de durlock (con su espesor real). No entra al despiece; las puertas que caen en él no generan alertas |
 | `SANITARIOS` | Solo lámina gráfica. Artefactos y equipamiento (líneas, polilíneas, círculos, elipses o bloques): se dibujan tal cual |
 | `PISO` | Solo lámina gráfica. Sombreado o líneas del piso: se dibujan tal cual, con línea muy fina y tono claro |
-| `ELECTRICIDAD` | Solo lámina gráfica. Bloques `ELEC_TOMA`, `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE` (vienen en la plantilla) |
+| `ELECTRICIDAD` | Lámina gráfica y obra in situ. Bloques `ELEC_TOMA`, `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE`, `ELEC_PASE` (caja de pase) y `ELEC_TABLERO` (vienen en la plantilla), insertados sobre la cara del muro o tabique donde va la caja. Atributo `ALTURA`: eje de la caja desde el piso |
+| `ELEC_CANERIA`, `ELEC_CANERIA_VISTA` | Solo obra in situ. Líneas de boca a boca y hasta el tablero: embutidas o vistas sobre el módulo. Se dibujan, no se acotan |
+| `SAN_EJE` | Solo obra in situ. Bloque `SAN_EJE` en el eje de cada artefacto, con el atributo `ARTEFACTO` (Inodoro, Lavatorio…) |
 | `PUERTA_GIRO` | Hoja y arco de cada puerta. Queda en el DXF; no sale en la lámina gráfica |
 | `PANEL_REV` | Opcional. Todos los muros llevan smart panel (cara exterior, sentido vertical), ajustes incluidos; un bloque `REV_BLOQUE` dentro de un panel cambia la cara o el sentido |
 
@@ -134,6 +136,31 @@ fila o de a dos por fila, lo que deje todo más grande.
 
 En la web se editan el espesor y el dibujo de cada revestimiento (las claves coinciden con el nombre de la capa: `REV_EXT_WPC` → `wpc`),
 el piso y las zinguerías. Para un revestimiento nuevo se crea la capa en AutoCAD y se lo agrega con el mismo nombre.
+
+## Obra in situ (posterior al montaje)
+
+Sección 5 de la web. Láminas A3 apaisadas, en blanco y negro (mismo lenguaje que las hojas de taller) y a escala (1:25 si
+entra), para que el equipo de obra sepa dónde va cada revestimiento interior, cada tabique, cada boca y cada artefacto.
+Salen del mismo DXF y usan los revestimientos editados en la sección 4. Todas las cotas en metros y a la cara del SIP o del
+tabique (obra gruesa, antes de revestir).
+
+1. **Planta 1 · Revestimientos interiores y tabiques.** Código de revestimiento por tramo y por local (R1, R2… con su nombre y
+   espesor en la referencia; OSB = SIP visto; DL = placa de un tabique de durlock). Por fuera de cada muro, una cadena medida
+   sobre su cara interior: esquinas, cambios de revestimiento y caras de los tabiques que llegan. Cada tabique (TB1, TB2…: los
+   paneles alineados forman una tira; uno en L son dos) con su largo y, si no toca ningún muro, su distancia a las caras más
+   cercanas.
+2. **Planta 2 · Instalaciones.** Bocas con su código (TG tablero, TC toma, LL llave, AP aplique, CP caja de pase, C centro) y
+   su altura; cañerías solo dibujadas (de puntos: embutida; continua gruesa: vista); ejes de artefactos (S1, S2…). Las cajas y
+   los ejes de cada cara llevan una cadena a eje de esquina a esquina (cortada en los tabiques); las bocas de techo, cotas a eje
+   en las dos direcciones. Tabla de bocas con altura y cara.
+3. **Vistas interiores.** Una por muro y por cara de tabique, vista desde el local: revestimientos (trama por código), tabiques
+   que llegan, vanos, bocas y ejes. Abajo, dos filas de cotas acumuladas desde el extremo izquierdo (caras: tabiques,
+   cambios de revestimiento y vanos; ejes: bocas y artefactos) y, a la derecha, alturas desde el piso (bocas, antepechos,
+   dinteles y alto del muro). Los tabiques se dibujan al alto del panel (2,44).
+
+Si un bloque `ELEC_*` no trae `ALTURA` se usa la típica del tipo y sale marcada con `*`: tablero 1,50 · toma 0,30 ·
+llave 1,10 · aplique 2,00 · caja de pase 2,20 (`sip/config.py`, `BOCAS`). Una boca que no queda sobre ningún muro ni tabique
+(salvo las de techo) se avisa y no sale en las vistas.
 
 ## Secuencia de carga del camión
 

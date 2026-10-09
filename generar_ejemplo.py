@@ -32,7 +32,13 @@ REV_INT_PLACA (yeso pegado), _OMEGA, _P35, _P70, _CERAMICO, _PVC: una linea sobr
 TABIQUE_DURLOCK: un rectangulo por tabique de durlock, con su espesor real.
 SANITARIOS: artefactos y equipamiento (lineas, circulos, bloques): se dibujan tal cual.
 PISO: sombreado o lineas del piso: se dibujan tal cual, con linea muy fina.
-ELECTRICIDAD: bloques ELEC_TOMA, ELEC_CENTRO, ELEC_LLAVE, ELEC_APLIQUE.
+ELECTRICIDAD: bloques ELEC_TOMA, ELEC_CENTRO, ELEC_LLAVE, ELEC_APLIQUE, ELEC_PASE (caja de pase)
+  y ELEC_TABLERO, sobre la cara del muro o tabique donde va la caja. ALTURA = cota del eje de la
+  caja desde el piso (ej. 0.30); vacio: valor tipico del tipo. ELEC_CENTRO va en el techo.
+--- Solo para las laminas de obra in situ ---
+ELEC_CANERIA: lineas de boca a boca y hasta el tablero (cañeria embutida). Solo se dibujan.
+ELEC_CANERIA_VISTA: idem, para las cañerias que quedan vistas sobre el modulo.
+SAN_EJE: bloque SAN_EJE en el eje de cada artefacto (ARTEFACTO = nombre, ej. Inodoro).
 PUERTA_GIRO: hoja y arco de cada puerta (queda en el DXF; no sale en la lamina grafica).
 Guardar: SAVEAS > AutoCAD DXF (2018 o anterior). La capa LEEME no se lee."""
 
@@ -40,7 +46,8 @@ FACTOR = {"m": 1, "cm": 100, "mm": 1000}
 
 
 def definir_bloques_electricidad(doc, k: float = 1.0) -> None:
-    """Bloques de bocas eléctricas (se insertan en la capa ELECTRICIDAD; la lámina los dibuja tal cual)."""
+    """Bloques de bocas eléctricas (se insertan en la capa ELECTRICIDAD; la lámina los dibuja tal cual).
+    Los de pared traen el atributo ALTURA (eje de la caja desde el piso) para las láminas de obra."""
     if "ELEC_TOMA" not in doc.blocks:
         b = doc.blocks.new("ELEC_TOMA")                     # tomacorriente: círculo con dos patas
         b.add_circle((0, 0), 0.05 * k)
@@ -62,6 +69,31 @@ def definir_bloques_electricidad(doc, k: float = 1.0) -> None:
         b.add_circle((0, 0), 0.06 * k)
         b.add_line((-0.06 * k, 0), (0.06 * k, 0))
         b.add_line((-0.08 * k, -0.06 * k), (0.08 * k, -0.06 * k))
+    if "ELEC_PASE" not in doc.blocks:
+        b = doc.blocks.new("ELEC_PASE")                     # caja de pase: cuadrado con cruz
+        r = 0.05 * k
+        b.add_lwpolyline([(-r, -r), (r, -r), (r, r), (-r, r)], close=True)
+        b.add_line((-r, -r), (r, r))
+        b.add_line((-r, r), (r, -r))
+    if "ELEC_TABLERO" not in doc.blocks:
+        b = doc.blocks.new("ELEC_TABLERO")                  # tablero: rectángulo con media diagonal rellena
+        w, h = 0.12 * k, 0.07 * k
+        b.add_lwpolyline([(-w, -h), (w, -h), (w, h), (-w, h)], close=True)
+        b.add_solid([(-w, -h), (w, -h), (-w, h)])
+    for nombre, defecto in (("ELEC_TOMA", "0.30"), ("ELEC_LLAVE", "1.10"), ("ELEC_APLIQUE", "2.00"),
+                            ("ELEC_PASE", "2.20"), ("ELEC_TABLERO", "1.50")):
+        b = doc.blocks[nombre]
+        if not any(a.dxf.tag == "ALTURA" for a in b.query("ATTDEF")):
+            b.add_attdef("ALTURA", (0.08 * k, 0.08 * k), defecto, dxfattribs={
+                "height": 0.05 * k, "prompt": f"Altura del eje de la caja desde el piso (ej. {defecto})"})
+    if "SAN_EJE" not in doc.blocks:
+        b = doc.blocks.new("SAN_EJE")                       # eje de artefacto: círculo chico con cruz
+        r = 0.04 * k
+        b.add_circle((0, 0), r)
+        b.add_line((-2 * r, 0), (2 * r, 0))
+        b.add_line((0, -2 * r), (0, 2 * r))
+        b.add_attdef("ARTEFACTO", (0.06 * k, 0.06 * k), "Inodoro", dxfattribs={
+            "height": 0.05 * k, "prompt": "Artefacto (Inodoro, Lavatorio, Ducha, Pileta…)"})
 INSUNITS = {"m": 6, "cm": 5, "mm": 4}
 
 
@@ -75,7 +107,7 @@ def crear(ruta: str, unidades: str = "m") -> None:
                           ("REV_INT_PLACA", 140), ("REV_INT_OMEGA", 150), ("REV_INT_P35", 160),
                           ("REV_INT_P70", 170), ("REV_INT_CERAMICO", 40), ("REV_INT_PVC", 90),
                           ("TABIQUE_DURLOCK", 8), ("SANITARIOS", 30), ("PISO", 9), ("ELECTRICIDAD", 2),
-                          ("PUERTA_GIRO", 1)):
+                          ("PUERTA_GIRO", 1), ("ELEC_CANERIA", 2), ("ELEC_CANERIA_VISTA", 1), ("SAN_EJE", 4)):
         doc.layers.add(nombre, color=color)
     definir_bloques_electricidad(doc, k)
 
@@ -152,6 +184,29 @@ def crear(ruta: str, unidades: str = "m") -> None:
     linea("REV_INT_OMEGA", (e, H - e), (W - e, H - e))
     linea("REV_INT_OMEGA", (W - e, H - e), (W - e, e))
     msp.add_blockref("ELEC_CENTRO", (W / 2 * k, H / 2 * k), dxfattribs={"layer": "ELECTRICIDAD"})
+
+    # Obra in situ: bocas sobre la cara interior del SIP (con su altura), cañerías y un eje sanitario
+    def boca(tipo, x, y, altura):
+        ins = msp.add_blockref(f"ELEC_{tipo}", (x * k, y * k), dxfattribs={"layer": "ELECTRICIDAD"})
+        ins.add_auto_attribs({"ALTURA": f"{altura * k:.3f}"})
+    boca("TABLERO", 1.70, e, 1.50)
+    boca("LLAVE", 1.45, e, 1.10)
+    boca("PASE", 2.40, e, 2.20)
+    boca("TOMA", e, 0.80, 0.30)
+    boca("TOMA", W - e, 1.30, 0.30)
+    boca("TOMA", 0.60, H - e, 0.30)
+    boca("APLIQUE", W - e, 4.20, 2.00)
+    for pts, capa in (([(1.70, e), (W / 2, H / 2)], "ELEC_CANERIA"),
+                      ([(1.45, e), (1.45, 0.30), (W / 2, H / 2)], "ELEC_CANERIA"),
+                      ([(1.70, e), (2.40, e)], "ELEC_CANERIA"),
+                      ([(2.40, e), (W - e, e), (W - e, 1.30)], "ELEC_CANERIA"),
+                      ([(W / 2, H / 2), (W - e, 4.20)], "ELEC_CANERIA"),
+                      ([(W / 2, H / 2), (0.60, H - e)], "ELEC_CANERIA"),
+                      ([(1.70, e), (1.70, 0.20), (e, 0.20), (e, 0.80)], "ELEC_CANERIA"),
+                      ([(1.70, 0.0), (1.70, -0.60)], "ELEC_CANERIA_VISTA")):
+        msp.add_lwpolyline([(x * k, y * k) for x, y in pts], dxfattribs={"layer": capa})
+    ins = msp.add_blockref("SAN_EJE", (1.00 * k, (H - e - 0.25) * k), dxfattribs={"layer": "SAN_EJE"})
+    ins.add_auto_attribs({"ARTEFACTO": "Pileta de cocina"})
 
     msp.add_mtext(INSTRUCCIONES, dxfattribs={"layer": "LEEME", "char_height": 0.09 * k,
                                               "insert": (-6.5 * k, 4.9 * k), "width": 6.0 * k})

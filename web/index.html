@@ -139,6 +139,20 @@
     <iframe id="vistaLam" class="oculto" title="Vista previa de la lámina gráfica"></iframe>
   </section>
 
+  <section id="secObra">
+    <h2>5 · Obra in situ (posterior al montaje)</h2>
+    <p class="nota" style="margin-top:0">Láminas A3 apaisadas, en blanco y negro y a escala, para el equipo de obra:
+      planta de revestimientos interiores y tabiques, planta de instalaciones (electricidad y ejes sanitarios) y una vista
+      interior de cada muro y de cada cara de tabique, todo acotado. Usa los revestimientos de la sección 4 y, además, las
+      bocas <code>ELEC_*</code> con su atributo <code>ALTURA</code>, el tablero (<code>ELEC_TABLERO</code>), las cajas de pase
+      (<code>ELEC_PASE</code>), las cañerías (<code>ELEC_CANERIA</code> y <code>ELEC_CANERIA_VISTA</code>, solo dibujadas) y los
+      ejes de artefactos (bloque <code>SAN_EJE</code>). Todo viene en la plantilla de AutoCAD.</p>
+    <div class="botones"><button id="bObra" class="principal" disabled>Generar láminas de obra</button></div>
+    <div id="estadoObra" class="nota"></div>
+    <div id="descObra" class="botones"></div>
+    <iframe id="vistaObra" class="oculto" title="Vista previa de las láminas de obra"></iframe>
+  </section>
+
   <section id="secLog" class="oculto">
     <h2>Resultado</h2>
     <pre id="log"></pre>
@@ -179,6 +193,7 @@ function refrescar() {
   $("bValidar").disabled = !(hab && dxf);
   $("bPlantilla").disabled = !hab;
   $("bLamina").disabled = !(hab && dxf);
+  $("bObra").disabled = !(hab && dxf);
   $("motivo").textContent = ocupado ? "Trabajando…" : !listo ? "Los botones se habilitan cuando termina de cargar (ver el mensaje de abajo)."
     : !dxf ? "Falta elegir el plano: arrastrá el DXF a la zona 1 (o tocala). Recién ahí se habilita «Generar hojas»." : "";
 }
@@ -249,6 +264,7 @@ worker.onmessage = (ev) => {
   else if (m.tipo === "listo") { listo = true; setEstado("Listo. Elegí el plano para empezar."); pedirEsquinas(); refrescar(); }
   else if (m.tipo === "esquinas") llenarEsquinas(m.lista);
   else if (m.tipo === "lamina") mostrarLamina(m);
+  else if (m.tipo === "obra") mostrarObra(m);
   else if (m.tipo === "error") { ocupado = false; setEstado("Error: " + m.mensaje, true); refrescar(); }
   else if (m.tipo === "archivo") { ocupado = false; setEstado("Listo."); descargar(m.nombre, m.buf, tipoDe(m.nombre)); refrescar(); }
   else if (m.tipo === "resultado") mostrar(m);
@@ -384,6 +400,30 @@ function mostrarLamina(m) {
   const b = document.createElement("button"); b.textContent = "Bajar PDF"; b.className = "principal";
   b.onclick = () => descargar(nombre, m.buf, "application/pdf");
   $("descLam").append(b);
+  refrescar();
+}
+
+$("bObra").onclick = () => {
+  if (!dxf || ocupado || !listo) return;
+  const proyecto = $("proyecto").value.trim();
+  if (!proyecto) { $("estadoObra").textContent = "Escribí el nombre del proyecto (sección 1)."; $("proyecto").focus(); return; }
+  ocupado = true; refrescar();
+  $("estadoObra").textContent = "Dibujando las láminas de obra…";
+  worker.postMessage({ tipo: "obra", dxf: dxf.datos.slice(0), proyecto, unidades: $("unidades").value, cfg: cfgLamina() });
+};
+function mostrarObra(m) {
+  ocupado = false;
+  $("descObra").innerHTML = "";
+  if (!m.salida.ok) { $("estadoObra").textContent = "No se pudo dibujar: " + m.salida.error; refrescar(); return; }
+  setEstado("Listo.");
+  $("estadoObra").textContent = `Láminas generadas (${m.salida.hojas} hojas).` + (m.salida.avisos.length ? " Avisos: " + m.salida.avisos.join(" ") : "");
+  const url = URL.createObjectURL(new Blob([m.buf], { type: "application/pdf" }));
+  urls.push(url);
+  $("vistaObra").src = url; $("vistaObra").classList.remove("oculto");
+  const nombre = ($("proyecto").value.trim() || "modulo").replace(/[^\w\-]+/g, "_") + "_obra_in_situ.pdf";
+  const b = document.createElement("button"); b.textContent = "Bajar PDF"; b.className = "principal";
+  b.onclick = () => descargar(nombre, m.buf, "application/pdf");
+  $("descObra").append(b);
   refrescar();
 }
 

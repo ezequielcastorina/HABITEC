@@ -92,3 +92,26 @@ def lamina(dxf_bytes, proyecto: str, unidades: str, cfg_json: str) -> str:
     except Exception as e:                                   # noqa: BLE001
         return json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"})
     return json.dumps({"ok": True, "ruta": str(ruta), "avisos": avisos})
+
+
+def obra(dxf_bytes, proyecto: str, unidades: str, cfg_json: str) -> str:
+    """Genera las láminas de obra in situ (plantas y vistas interiores) en /tmp/trabajo/obra_in_situ.pdf."""
+    import datetime
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+    from sip.lector_dxf import leer_plano
+    from sip.obra import hojas_obra
+    BASE.mkdir(parents=True, exist_ok=True)
+    dxf = BASE / "plano_obra.dxf"
+    dxf.write_bytes(_bytes(dxf_bytes))
+    try:
+        plano = leer_plano(dxf, proyecto, unidades or "auto")
+        figs, avisos = hojas_obra(plano, json.loads(cfg_json or "{}"), datetime.date.today().strftime("%d/%m/%Y"))
+        ruta = BASE / "obra_in_situ.pdf"
+        with PdfPages(ruta) as pdf:
+            for fig in figs:
+                pdf.savefig(fig)
+                plt.close(fig)
+    except Exception as e:                                   # noqa: BLE001
+        return json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"})
+    return json.dumps({"ok": True, "ruta": str(ruta), "avisos": avisos, "hojas": len(figs)})

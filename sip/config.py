@@ -40,6 +40,10 @@ CAPA_SANITARIOS = "SANITARIOS"             # artefactos y equipamiento: se dibuj
 CAPA_PUERTA_GIRO = "PUERTA_GIRO"           # hoja y arco de cada puerta: se dibujan tal cual
 CAPA_ELECTRICIDAD = "ELECTRICIDAD"         # bocas (bloques ELEC_*): se dibujan tal cual
 CAPA_PISO = "PISO"                         # trama de piso (sombreado o líneas): se dibuja con la línea más fina
+# Capas que solo usan las láminas de obra in situ
+CAPA_CANERIA = "ELEC_CANERIA"              # cañerías embutidas: líneas de boca a boca y al tablero (solo dibujo, sin cotas)
+CAPA_CANERIA_VISTA = "ELEC_CANERIA_VISTA"  # cañerías que quedan vistas sobre el módulo
+CAPA_SAN_EJE = "SAN_EJE"                   # bloque SAN_EJE (atributo ARTEFACTO) en el eje de cada artefacto
 PREFIJO_REV_EXT = "REV_EXT_"               # REV_EXT_CHAPA, REV_EXT_WPC: línea sobre la cara exterior del tramo
 PREFIJO_REV_INT = "REV_INT_"               # REV_INT_OMEGA, _P35, _P70, _CERAMICO, _PVC: línea sobre la cara interior
 
@@ -62,3 +66,14 @@ TIPOS_VANO = {
     "P": "Puerta",
 }
 TIPOS_HASTA_PISO = {"PV", "C", "P"}   # sin antepecho, sin huelgo contra el piso
+
+# Bocas eléctricas (bloques ELEC_<TIPO> en la capa ELECTRICIDAD). El atributo ALTURA es la cota del eje
+# de la caja desde la base (nivel de piso); si falta, se toma la de esta tabla. CENTRO va en el techo.
+BOCAS = {
+    "TABLERO": ("TG", "Tablero", 1.50),
+    "TOMA": ("TC", "Tomacorriente", 0.30),
+    "LLAVE": ("LL", "Llave de efecto", 1.10),
+    "APLIQUE": ("AP", "Aplique de pared", 2.00),
+    "PASE": ("CP", "Caja de pase", 2.20),
+    "CENTRO": ("C", "Boca de techo (centro)", None),
+}
