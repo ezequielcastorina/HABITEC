@@ -72,9 +72,10 @@ TIPOS_HASTA_PISO = {"PV", "C", "P"}   # sin antepecho, sin huelgo contra el piso
 # de la caja desde la base (nivel de piso); si falta, se toma la de esta tabla. CENTRO va en el techo.
 BOCAS = {
     "TABLERO": ("TG", "Tablero", 1.50),
-    "TOMA": ("TC", "Tomacorriente", 0.30),
+    "TOMA": ("TC", "Toma polarizado a tierra", 0.30),
+    "TOMA_ESPECIAL": ("TE", "Toma de uso especial (aire acondicionado, etc.)", 2.00),
     "LLAVE": ("LL", "Llave de efecto", 1.10),
-    "APLIQUE": ("AP", "Aplique de pared", 2.00),
+    "APLIQUE": ("AP", "Boca de pared", 2.00),
     "PASE": ("CP", "Caja de pase", 2.20),
-    "CENTRO": ("C", "Boca de techo (centro)", None),
+    "CENTRO": ("C", "Boca de techo", None),
 }

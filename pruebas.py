@@ -316,7 +316,7 @@ def test_obra_in_situ():
     from sip.obra import Obra, hojas_obra
     d0 = correr(base())
     p0 = d0.plano
-    assert len(p0.bocas) == 8 and len(p0.canerias) == 8 and len(p0.ejes_sanitarios) == 1
+    assert len(p0.bocas) == 9 and len(p0.canerias) == 8 and len(p0.ejes_sanitarios) == 1
     tg = next(b for b in p0.bocas if b.tipo == "TABLERO")
     assert abs(tg.altura - 1.50) < 1e-9 and not tg.por_defecto
     assert next(b for b in p0.bocas if b.tipo == "CENTRO").altura is None
@@ -350,7 +350,7 @@ def test_obra_in_situ():
     assert {round(muro_b["z0"], 3), round(muro_b["z1"], 3)} == {2.22, 2.31}
     muro_c = next(c for c in ob.caras if c["nombre"] == "MURO C")
     assert [round(t["a"], 3) for t in muro_c["tabs"]] == [1.236]   # cara terminada del tabique (cerámico en B y en el tabique)
-    cer = next(c for c in ob.caras if c["corto"].startswith("TB") and c["nf"] == (0, -1))
+    cer = next(c for c in ob.caras if c["tab"] is not None and c["nf"] == (0, -1))
     assert any(ob.cod_rev(m) == "R2" for m, _, _ in cer["revs"]), cer["revs"]   # cerámico sobre el tabique
     figs, avisos = hojas_obra(pl, {}, "01/01/2026")
     assert len(figs) >= 3 and not avisos, avisos

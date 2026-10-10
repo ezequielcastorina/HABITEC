@@ -74,7 +74,7 @@ Cada archivo es un único módulo. Todo en rectángulos cerrados, ejes alineados
 | `TABIQUE_DURLOCK` | Solo lámina gráfica. Un rectángulo por tabique de durlock (con su espesor real). No entra al despiece; las puertas que caen en él no generan alertas |
 | `SANITARIOS` | Solo lámina gráfica. Artefactos y equipamiento (líneas, polilíneas, círculos, elipses o bloques): se dibujan tal cual |
 | `PISO` | Solo lámina gráfica. Sombreado o líneas del piso: se dibujan tal cual, con línea muy fina y tono claro |
-| `ELECTRICIDAD` | Lámina gráfica y obra in situ. Bloques `ELEC_TOMA`, `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE`, `ELEC_PASE` (caja de pase) y `ELEC_TABLERO` (vienen en la plantilla), insertados sobre la cara del muro o tabique donde va la caja. Atributo `ALTURA`: eje de la caja desde el piso |
+| `ELECTRICIDAD` | Lámina gráfica y obra in situ. Bloques `ELEC_TOMA`, `ELEC_TOMA_ESPECIAL` (uso especial: aire acondicionado, etc.), `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE`, `ELEC_PASE` (caja de pase) y `ELEC_TABLERO` (vienen en la plantilla), insertados sobre la cara del muro o tabique donde va la caja. Atributo `ALTURA`: eje de la caja desde el piso |
 | `ELEC_CANERIA`, `ELEC_CANERIA_VISTA` | Solo obra in situ. Líneas de boca a boca y hasta el tablero: embutidas o vistas sobre el módulo. Se dibujan, no se acotan |
 | `SAN_EJE` | Solo obra in situ. Bloque `SAN_EJE` en el eje de cada artefacto, con el atributo `ARTEFACTO` (Inodoro, Lavatorio…) |
 | `PUERTA_GIRO` | Hoja y arco de cada puerta. Queda en el DXF; no sale en la lámina gráfica |
@@ -148,13 +148,12 @@ de puntos. Todo lo de electricidad (bocas, cañerías, sus cotas y alturas) va e
 1. **Planta 1 · Revestimientos interiores y tabiques.** Código de revestimiento por tramo y por local (R1, R2… con su nombre y
    espesor en la referencia; OSB = SIP visto; DL = placa de un tabique de durlock). Por fuera de cada muro, una cadena medida
    sobre su cara interior terminada: esquinas, cambios de revestimiento y caras terminadas de los tabiques que llegan. Más
-   afuera, abajo y a la izquierda, una cadena por tabique (TB1, TB2…: los paneles alineados forman una tira; uno en L son dos):
-   de través sus caras terminadas y a lo largo sus extremos, desde la cara terminada más cercana.
-2. **Planta 2 · Instalaciones.** Bocas con su código (TG tablero, TC toma, LL llave, AP aplique, CP caja de pase, C centro) y
-   su altura; cañerías solo dibujadas (de puntos: embutida; continua gruesa: vista); ejes de artefactos (S1, S2…). Por fuera,
-   en cada lado, filas de electricidad (rojas) y de ejes sanitarios: cada caja o eje, a eje desde la cara terminada más cercana
-   sobre la que va (esquina o tabique), del lado hacia el que mira su cara; las bocas de techo, en x abajo y en y a la
-   izquierda. Las que salen de la misma cara forman una cadena; las que se pisan van a otra fila. Tabla de bocas con altura y cara.
+   afuera, una cadena por tabique (T01, T02…: los paneles alineados forman una tira; uno en L son dos): de través sus caras
+   terminadas (si ningún muro las acota ya) y a lo largo sus extremos, si uno queda libre, desde la cara terminada más cercana.
+2. **Planta 2 · Instalaciones.** Bocas con la simbología de la oficina (toma polarizado a tierra, toma de uso especial,
+   tablero, boca de techo, boca de pared, llave, caja de pase), apoyadas en su cara y rotuladas solo con su altura; cañerías solo dibujadas (de puntos: embutida; continua gruesa: vista); ejes de artefactos, rotulados con el
+   artefacto (Inodoro, Ducha…). Por fuera: cada caja (en rojo) o eje, a eje desde la cara terminada más cercana sobre la que va
+   (esquina o tabique); las bocas de techo, en x y en y. Las que salen de la misma cara forman una cadena. Tabla de bocas con altura y cara.
 3. **Vistas interiores.** Una por muro y por cara de tabique, vista desde el local: revestimientos (trama por código), tabiques
    que llegan (con trama: son los únicos rayados), vanos, bocas y ejes; los revestimientos, sin trama, con su código y el
    cambio de tramo. Abajo, filas de cotas acumuladas desde el extremo izquierdo, con línea guía de puntos desde cada elemento
@@ -162,7 +161,10 @@ de puntos. Todo lo de electricidad (bocas, cañerías, sus cotas y alturas) va e
    desde el piso (bocas en rojo, antepechos, dinteles y alto del muro). Se ve la pendiente del techo: altura libre de 2,31 junto al muro alto y 2,22 junto al de la
    caída (`ALTO_INTERIOR_ALTO` y `ALTO_PANEL_BAJO` en `sip/config.py`), en los muros laterales y en los tabiques.
 
-Si un bloque `ELEC_*` no trae `ALTURA` se usa la típica del tipo y sale marcada con `*`: tablero 1,50 · toma 0,30 ·
+Las cotas de las plantas van al lado más cercano a lo que miden, equiparando la cantidad de filas de los lados opuestos
+(a lo sumo una de diferencia); cuando un número no entra en su tramo, va al costado, a la misma altura.
+
+Si un bloque `ELEC_*` no trae `ALTURA` se usa la típica del tipo y sale marcada con `*`: tablero 1,50 · toma 0,30 · toma de uso especial 2,00 ·
 llave 1,10 · aplique 2,00 · caja de pase 2,20 (`sip/config.py`, `BOCAS`). Una boca que no queda sobre ningún muro ni tabique
 (salvo las de techo) se avisa y no sale en las vistas.
 

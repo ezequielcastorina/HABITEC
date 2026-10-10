@@ -171,10 +171,20 @@ def _cadena(ax, pts, out, d, textos, fs=6.5, color=NEGRO, desde=None):
         ang = math.atan2(b[1] - a[1], b[0] - a[0])
         a_ = math.radians(_angulo_legible(ang))
         arriba = (-math.sin(a_), math.cos(a_))                 # normal "arriba" del texto legible
-        lejos = 1.0 if L >= len(textos[k]) * fs * 0.21 else 1.0 + 3.0 * (alterna % 2 + 1)
-        if lejos > 1.0:
-            alterna += 1
-        m = ((a[0] + b[0]) / 2 + arriba[0] * lejos, (a[1] + b[1]) / 2 + arriba[1] * lejos)
+        ancho = len(textos[k]) * fs * 0.21                    # largo aproximado del número (mm)
+        m = ((a[0] + b[0]) / 2 + arriba[0], (a[1] + b[1]) / 2 + arriba[1])
+        if L < ancho + 0.6:
+            # no entra: el número va a la misma altura, al costado (hacia el tramo vecino más largo)
+            u = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+            sig = math.dist(Q[k + 1], Q[k + 2]) if k + 2 < len(Q) else 1e9
+            ant = math.dist(Q[k - 1], Q[k]) if k > 0 else 1e9
+            if sig >= ant:
+                m = _mas(_mas(b, u, ancho / 2 + 1.2 + alterna), arriba, 1.0)
+            else:
+                m = _mas(_mas(a, u, -(ancho / 2 + 1.2 + alterna)), arriba, 1.0)
+            alterna = ancho + 1.0 if alterna == 0 else 0
+        else:
+            alterna = 0
         _texto_rot(ax, m[0], m[1], textos[k], ang, fs=fs, color=color)
 
 
@@ -203,34 +213,56 @@ def _cota_simple(ax, a, b, texto, fs=6.5, desp=None):
 
 # --------------------------------------------------------------------------------------------
 # Símbolos (papel, mm)
-def simbolo(ax, tipo, x, y, r=1.6, z=14, color=ROJO):
-    NEGRO = color                                            # noqa: N806 (los símbolos eléctricos van en rojo)
-    kw = dict(color=NEGRO, lw=0.6, zorder=z + 1, solid_capstyle="butt")
-    if tipo == "TABLERO":
-        w, h = r * 1.5, r * 0.95
-        ax.add_patch(Rectangle((x - w, y - h), 2 * w, 2 * h, fc="white", ec=NEGRO, lw=0.6, zorder=z))
-        ax.add_patch(MPoly([(x - w, y - h), (x + w, y - h), (x - w, y + h)], closed=True, fc=NEGRO, lw=0, zorder=z + 1))
+# Simbología eléctrica (como se dibuja en la oficina). Cada símbolo se arma en coordenadas locales, con
+# «arriba» hacia la pared: en planta se gira para que apoye en su cara; en las vistas va derecho.
+LLEGA_PARED = {"TOMA": 0.6, "TOMA_ESPECIAL": 0.6, "APLIQUE": 1.75}      # cuánto sobresale hacia la pared (× r)
+
+
+def simbolo(ax, tipo, x, y, r=1.6, z=14, color=ROJO, arriba=(0.0, 1.0)):
+    ux, uy = arriba
+    rx, ry = uy, -ux
+
+    def P(lx, ly):
+        return (x + lx * r * rx + ly * r * ux, y + lx * r * ry + ly * r * uy)
+
+    def linea(*pts, lw=0.6, c=color):
+        Q = [P(*q) for q in pts]
+        ax.plot([q[0] for q in Q], [q[1] for q in Q], color=c, lw=lw, zorder=z + 1, solid_capstyle="butt")
+
+    def poli(pts, fc, ec=color, lw=0.6, zz=z):
+        ax.add_patch(MPoly([P(*q) for q in pts], closed=True, fc=fc, ec=ec, lw=lw, zorder=zz, joinstyle="miter"))
+    if tipo in ("TOMA", "TOMA_ESPECIAL"):                    # cuenco con orejas y la pata de tierra
+        arco = [(math.cos(a), 0.2 + math.sin(a)) for a in [math.pi + k * math.pi / 16 for k in range(17)]]
+        poli(arco, fc=color if tipo == "TOMA_ESPECIAL" else "white")
+        linea((-1.0, 0.2), (-1.35, 0.6))
+        linea((1.0, 0.2), (1.35, 0.6))
+        linea((0.0, 0.2), (0.0, -1.5))
+        return
+    if tipo == "TABLERO":                                    # rectángulo con la cuña rellena
+        poli([(-1.5, -0.95), (1.5, -0.95), (1.5, 0.95), (-1.5, 0.95)], fc="white")
+        poli([(-1.5, -0.95), (1.5, -0.95), (1.5, 0.95)], fc=color, lw=0, zz=z + 1)
         return
     if tipo == "PASE":
-        ax.add_patch(Rectangle((x - r, y - r), 2 * r, 2 * r, fc="white", ec=NEGRO, lw=0.6, zorder=z))
-        ax.plot([x - r, x + r], [y - r, y + r], **kw)
-        ax.plot([x - r, x + r], [y + r, y - r], **kw)
+        poli([(-1, -1), (1, -1), (1, 1), (-1, 1)], fc="white")
+        linea((-1, -1), (1, 1))
+        linea((-1, 1), (1, -1))
         return
-    ax.add_patch(Circle((x, y), r, fc="white", ec=NEGRO, lw=0.6, zorder=z))
-    if tipo == "CENTRO":
-        q = r * 0.707
-        ax.plot([x - q, x + q], [y - q, y + q], **kw)
-        ax.plot([x - q, x + q], [y + q, y - q], **kw)
-    elif tipo == "TOMA":
-        for dx in (-0.45 * r, 0.45 * r):
-            ax.plot([x + dx, x + dx], [y - 0.55 * r, y + 0.55 * r], **kw)
-    elif tipo == "LLAVE":
-        ax.add_patch(Circle((x, y), r * 0.3, fc=NEGRO, lw=0, zorder=z + 1))
-    elif tipo == "APLIQUE":
-        ax.plot([x - r, x + r], [y, y], **kw)
-        ax.add_patch(MPoly([(x - r, y), (x + r, y), (x, y - r)], closed=True, fc=NEGRO, lw=0, zorder=z + 1))
+    if tipo == "CENTRO":                                     # círculo lleno con cruz blanca
+        ax.add_patch(Circle((x, y), r, fc=color, ec=color, lw=0.6, zorder=z))
+        q = 0.62
+        linea((-q, -q), (q, q), lw=0.8, c="white")
+        linea((-q, q), (q, -q), lw=0.8, c="white")
+        return
+    if tipo == "APLIQUE":                                    # boca de pared: círculo lleno, pata y T
+        ax.add_patch(Circle((x, y), r, fc=color, ec=color, lw=0.6, zorder=z))
+        linea((0.0, 1.0), (0.0, 1.75))
+        linea((-0.9, 1.75), (0.9, 1.75), lw=0.8)
+        return
+    ax.add_patch(Circle((x, y), r, fc="white", ec=color, lw=0.6, zorder=z))
+    if tipo == "LLAVE":
+        ax.add_patch(Circle((x, y), r * 0.3, fc=color, lw=0, zorder=z + 1))
     else:
-        ax.add_patch(Circle((x, y), r * 0.3, fc="white", ec=NEGRO, lw=0.5, zorder=z + 1))
+        ax.add_patch(Circle((x, y), r * 0.3, fc="white", ec=color, lw=0.5, zorder=z + 1))
 
 
 def simbolo_eje(ax, x, y, r=1.5, z=14):
@@ -285,7 +317,7 @@ class Obra:
                 tabs.append({"tipo": tipo, "geom": g.simplify(1e-6)})
         tabs.sort(key=lambda t: (round(-t["geom"].centroid.y, 2), t["geom"].centroid.x))
         for n, t in enumerate(tabs, start=1):
-            t["codigo"] = f"TB{n}"
+            t["codigo"] = f"T{n:02d}"
             x0, y0, x1, y1 = t["geom"].bounds
             t["esp"] = min(x1 - x0, y1 - y0)
             t["largo"] = max(x1 - x0, y1 - y0)
@@ -582,63 +614,94 @@ PASO_FILA = 8.0                            # mm entre filas
 
 
 class Filas:
-    """Cotas por fuera del módulo: filas de cadenas en cada lado (A arriba, B derecha, C abajo, D izquierda).
-    Cada fila junta puntos del modelo; se acotan proyectados sobre el lado, con líneas guía de puntos desde
-    cada elemento."""
+    """Cotas por fuera del módulo: cadenas en filas a los cuatro lados (A arriba, B derecha, C abajo,
+    D izquierda), con líneas guía de puntos desde cada elemento.
+
+    Cada cadena mide a lo largo de un eje (x o y). Se manda al lado más cercano a sus elementos y, si un lado
+    termina con dos filas más que el de enfrente, se pasan cadenas al otro hasta equiparar."""
+
+    LADOS = {"x": ("C", "A"), "y": ("D", "B")}               # (lado bajo, lado alto) de cada eje
 
     def __init__(self, obra, inicio):
         self.obra, self.inicio = obra, inicio
-        self.filas = {dl: [] for dl in DIRS}
+        self.pend = {"x": [], "y": []}
+        self.filas = None
 
-    def agregar(self, dl, puntos, color=NEGRO):
-        """Una fila con una sola cadena por todos los puntos."""
-        r = (-DIRS[dl][1], DIRS[dl][0])
-        if len({round(_dot(p, r), 3) for p in puntos}) >= 2:
-            self.filas[dl].append(([puntos], color))
+    def agregar_cadenas(self, eje, cadenas, color=NEGRO):
+        d = (1, 0) if eje == "x" else (0, 1)
+        for g in cadenas:
+            us = {round(_dot(q, d), 3) for q in g}
+            if len(us) >= 2 and not any({round(_dot(q, d), 3) for q in h} == us for h, _ in self.pend[eje]):
+                self.pend[eje].append((list(g), color))
 
-    def agregar_pares(self, dl, pares, color=NEGRO):
+    def agregar_pares(self, eje, pares, color=NEGRO):
         """Cotas desde una cara de referencia hasta un eje: las que salen de la misma cara (hacia el mismo lado)
-        forman una cadena; las cadenas que se pisan van a otra fila."""
-        r = (-DIRS[dl][1], DIRS[dl][0])
+        forman una cadena."""
+        d = (1, 0) if eje == "x" else (0, 1)
         grupos = {}
         for item, ref in pares:
-            ui, ur = _dot(item, r), _dot(ref, r)
+            ui, ur = _dot(item, d), _dot(ref, d)
             if abs(ui - ur) < 0.005:
                 continue
             grupos.setdefault((round(ur, 3), ui > ur), [ref]).append(item)
-        self.agregar_cadenas(dl, list(grupos.values()), color)
+        self.agregar_cadenas(eje, list(grupos.values()), color)
 
-    def agregar_cadenas(self, dl, cadenas, color=NEGRO):
-        """Varias cadenas independientes en un lado; las que se pisan van a otra fila."""
-        r = (-DIRS[dl][1], DIRS[dl][0])
-        cadenas = sorted((g for g in cadenas if len({round(_dot(q, r), 3) for q in g}) >= 2),
-                         key=lambda g: min(_dot(q, r) for q in g))
+    @staticmethod
+    def _carriles(cadenas, d):
         carriles = []
-        for g in cadenas:
-            a, b = min(_dot(q, r) for q in g), max(_dot(q, r) for q in g)
+        for g, color in sorted(cadenas, key=lambda gc: min(_dot(q, d) for q in gc[0])):
+            a, b = min(_dot(q, d) for q in g), max(_dot(q, d) for q in g)
             for carril in carriles:
-                if a >= carril["fin"] + 0.04:
-                    carril["cadenas"].append(g)
+                if a >= carril["fin"] + 0.15:           # lugar para un número corrido al costado
+                    carril["cadenas"].append((g, color))
                     carril["fin"] = b
                     break
             else:
-                carriles.append({"fin": b, "cadenas": [g]})
-        for carril in carriles:
-            self.filas[dl].append((carril["cadenas"], color))
+                carriles.append({"fin": b, "cadenas": [(g, color)]})
+        return [c["cadenas"] for c in carriles]
+
+    def repartir(self):
+        if self.filas is not None:
+            return self.filas
+        self.filas = {dl: [] for dl in DIRS}
+        x0, y0, x1, y1 = self.obra.mo.cara_ext.bounds
+        for eje, (bajo, alto) in self.LADOS.items():
+            d = (1, 0) if eje == "x" else (0, 1)
+            perp = (d[1], d[0])
+            medio = (y0 + y1) / 2 if eje == "x" else (x0 + x1) / 2
+            pos = lambda gc: sum(_dot(q, perp) for q in gc[0]) / len(gc[0])        # noqa: E731
+            lados = {bajo: [], alto: []}
+            for gc in self.pend[eje]:
+                lados[alto if pos(gc) > medio else bajo].append(gc)
+            while True:                                      # equiparar: a lo sumo una fila de diferencia
+                n_b, n_a = len(self._carriles(lados[bajo], d)), len(self._carriles(lados[alto], d))
+                if abs(n_b - n_a) < 2:
+                    break
+                de, a = (bajo, alto) if n_b > n_a else (alto, bajo)
+                gc = (max if de == bajo else min)(lados[de], key=pos)       # la más cercana al otro lado
+                lados[de].remove(gc)
+                lados[a].append(gc)
+                if abs(len(self._carriles(lados[bajo], d)) - len(self._carriles(lados[alto], d))) >= abs(n_b - n_a):
+                    lados[a].remove(gc)
+                    lados[de].append(gc)
+                    break
+            for dl in (bajo, alto):
+                self.filas[dl] = self._carriles(lados[dl], d)
+        return self.filas
 
     def margenes(self):
         return {dl: (self.inicio + PASO_FILA * (len(f) - 1) + 6.0) if f else self.inicio - PRIMERA_FILA + 4.0
-                for dl, f in self.filas.items()}
+                for dl, f in self.repartir().items()}
 
     def dibujar(self, lm):
         ext = list(self.obra.mo.cara_ext.exterior.coords)
-        for dl, filas in self.filas.items():
+        for dl, filas in self.repartir().items():
             n = DIRS[dl]
             r = (-n[1], n[0])
             dmax = max(_dot(q, n) for q in ext)
-            for i, (cadenas, color) in enumerate(filas):
+            for i, cadenas in enumerate(filas):
                 d = self.inicio + PASO_FILA * i
-                for puntos in cadenas:
+                for puntos, color in cadenas:
                     por_u = {}
                     for p in sorted(puntos, key=lambda p: -_dot(p, n)):      # la guía sale del más cercano al borde
                         u = round(_dot(p, r), 3)
@@ -738,9 +801,10 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
     mo = obra.mo
     fig, ax = _hoja("Planta 1 · Revestimientos interiores y tabiques", obra.plano.proyecto, fecha, pagina, None)
     # por fuera: 1ª fila, la cadena de cada muro; después, una cadena por tabique (sus caras terminadas y su
-    # largo, desde la cara terminada más cercana): de través y a lo largo, en x abajo y en y a la izquierda
+    # largo, desde la cara terminada más cercana), del lado más cercano. Si un muro ya acota las caras de un
+    # tabique (porque llega a él), no se repiten.
     filas = Filas(obra, PRIMERA_FILA + PASO_FILA)
-    por_lado = {"C": [], "D": []}
+    en_muros = {id(t["t"]) for c in obra.caras if c["muro"] is not None for t in c["tabs"]}
     for t in obra.tabs:
         caras_t = [c for c in obra.caras if c["tab"] is t]
         if not caras_t:
@@ -756,6 +820,8 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
         trs = [tr for tr in (obra.tramo(mid, a), obra.tramo(mid, (-a[0], -a[1]))) if tr]
         if trs:
             traves.append(min(trs, key=lambda tr: math.dist(*tr))[1])
+        if id(t) in en_muros:
+            traves = []
         # a lo largo: los extremos terminados y, si un extremo queda libre, la cara más cercana
         pr = sorted((q for c in caras_t for q in (c["A"], c["B"])), key=lambda q: _dot(q, e))
         largo = [pr[0], pr[-1]]
@@ -766,10 +832,9 @@ def planta_revestimientos(obra: Obra, fecha, pagina):
                 libres.append(tr)
         if libres:
             largo.append(min(libres, key=lambda tr: math.dist(*tr))[1])
-        por_lado["C" if vertical else "D"].append(traves)
-        por_lado["D" if vertical else "C"].append(largo)
-    for dl, cadenas in por_lado.items():
-        filas.agregar_cadenas(dl, cadenas)
+        filas.agregar_cadenas("x" if vertical else "y", [traves] if traves else [])
+        if libres:                                           # entre dos caras, el largo ya sale de las otras cotas
+            filas.agregar_cadenas("y" if vertical else "x", [largo])
     lm = _lienzo_planta(ax, obra, filas)
     _base_planta(lm, obra, 1)
     k = lm.k
@@ -896,15 +961,13 @@ def _escala_pie(ax, esc):
 def planta_instalaciones(obra: Obra, fecha, pagina):
     fig, ax = _hoja("Planta 2 · Instalaciones: electricidad y ejes sanitarios", obra.plano.proyecto, fecha, pagina,
                     None)
-    # cotas por fuera: en cada lado, una fila de electricidad (roja) y otra de ejes sanitarios. Cada boca o eje
-    # va al lado hacia el que mira su cara, con las esquinas terminadas de esa cara (y los tabiques que llegan);
-    # las de techo y los ejes sueltos, en x abajo y en y a la izquierda, entre las caras más cercanas.
+    # cotas por fuera: cada boca (en rojo) o eje sanitario, a eje desde la cara terminada más cercana sobre la
+    # que va (esquina o tabique que llega); las de techo y los ejes sueltos, en x y en y. Cada cadena va al lado
+    # más cercano, equiparando la cantidad de filas de los lados opuestos.
     filas = Filas(obra, PRIMERA_FILA)
 
     def lado_de(c):
-        if c["nf"][1] != 0:
-            return "A" if c["nf"][1] < 0 else "C"
-        return "D" if c["nf"][0] > 0 else "B"
+        return "x" if c["r"][1] == 0 else "y"
 
     def juntar(items, dest):
         for it in items:
@@ -916,18 +979,18 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
                 ref = min(refs, key=lambda v: abs(v - it["u"]))
                 dest.setdefault(lado_de(c), []).append((_mas(c["A"], c["r"], it["u"]), _mas(c["A"], c["r"], ref)))
             else:
-                for dl, d in (("C", (1, 0)), ("D", (0, 1))):     # techo: en x y en y, a la cara más cercana
+                for dl, d in (("x", (1, 0)), ("y", (0, 1))):     # techo: en x y en y, a la cara más cercana
                     ends = [tr[1] for tr in (obra.tramo(p, d), obra.tramo(p, (-d[0], -d[1]))) if tr]
                     if ends:
                         dest.setdefault(dl, []).append((p, min(ends, key=lambda q: math.dist(p, q))))
     elec, san = {}, {}
     juntar(obra.bocas, elec)
     juntar(obra.ejes, san)
-    for dl in "ABCD":
-        if dl in elec:
-            filas.agregar_pares(dl, elec[dl], ROJO)
-        if dl in san:
-            filas.agregar_pares(dl, san[dl])
+    for eje in ("x", "y"):
+        if eje in elec:
+            filas.agregar_pares(eje, elec[eje], ROJO)
+        if eje in san:
+            filas.agregar_pares(eje, san[eje])
     lm = _lienzo_planta(ax, obra, filas)
     _base_planta(lm, obra, 2)
     # cañerías (solo dibujo, en rojo)
@@ -948,10 +1011,12 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
         nf = c["nf"]
         for it in c["bocas"]:
             b = it["b"]
-            P = _mas(lm.T(_mas(c["A"], c["r"], it["u"])), nf, 2.4)
-            simbolo(ax, b.tipo, P[0], P[1], r=1.4)
+            cara = lm.T(_mas(_mas(c["A"], c["r"], it["u"]), nf, obra.esp_en(c, it["u"])))
+            rr = 1.4                                         # el símbolo apoya en la cara terminada
+            P = _mas(cara, nf, LLEGA_PARED.get(b.tipo, 1.0) * rr + 0.3)
+            simbolo(ax, b.tipo, P[0], P[1], r=rr, arriba=(-nf[0], -nf[1]))
             alt = _f(b.altura) + ("*" if b.por_defecto else "")
-            rotulo(_mas(P, nf, 3.0), nf, [it["codigo"], f"h {alt}"], color=ROJO)
+            rotulo(_mas(P, nf, 3.2), nf, [f"h {alt}"], color=ROJO)
         for it in c["ejes"]:
             e = it["e"]
             pie = _mas(c["A"], c["r"], it["u"])
@@ -960,7 +1025,7 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
             P = lm.T(_mas(pie, nf, dd))
             simbolo_eje(ax, P[0], P[1], r=1.3)
             Q = _mas(lm.T(_mas(pie, nf, max(0.45, dd + 0.25))), nf, 1.0)
-            rotulo(Q, nf, [it["codigo"], e.artefacto])
+            rotulo(Q, nf, [e.artefacto])
     # bocas de techo y ejes sueltos
     for it in obra.bocas:
         b = it["b"]
@@ -968,16 +1033,17 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
             continue
         P = lm.T((b.x, b.y))
         simbolo(ax, b.tipo, P[0], P[1])
-        alt = "techo" if b.altura is None else _f(b.altura) + ("*" if b.por_defecto else "")
-        ax.text(P[0] + 2.4, P[1] + 2.0, f"{it['codigo']} {alt}", fontsize=6.2, fontweight="bold", ha="left",
-                va="bottom", zorder=13, color=ROJO, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
+        if b.altura is not None:
+            alt = _f(b.altura) + ("*" if b.por_defecto else "")
+            ax.text(P[0] + 2.4, P[1] + 2.0, f"h {alt}", fontsize=6.2, fontweight="bold", ha="left", va="bottom",
+                    zorder=13, color=ROJO, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
     for it in obra.ejes:
         if it["cara"] is not None:
             continue
         e = it["e"]
         P = lm.T((e.x, e.y))
         simbolo_eje(ax, P[0], P[1])
-        ax.text(P[0] + 3.0, P[1] - 3.0, f"{it['codigo']} {e.artefacto}", fontsize=6.2, fontweight="bold", ha="left",
+        ax.text(P[0] + 3.0, P[1] - 3.0, e.artefacto, fontsize=6.2, fontweight="bold", ha="left",
                 va="top", zorder=13, bbox=dict(boxstyle="square,pad=0.1", fc="white", ec="none"))
     filas.dibujar(lm)
     # referencias
@@ -985,7 +1051,7 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
 
     def fila_sim(tipo, txt):
         def f(ax, x, y):
-            simbolo(ax, tipo, x + 3, y - 1.5, r=1.5)
+            simbolo(ax, tipo, x + 3, y - 1.8, r=1.2)
             ax.text(x + 8, y - 1.5, txt, fontsize=7, va="center", color=ROJO)
         return f
     filas = []
@@ -996,7 +1062,7 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
     for tipo in sorted(tipos, key=lambda t: list(C.BOCAS).index(t) if t in C.BOCAS else 99):
         pref, nombre, defecto = C.BOCAS.get(tipo, ("B", tipo.title(), None))
         extra = "" if defecto is None else f" (h típica {_f(defecto)})"
-        filas.append(fila_sim(tipo, f"{pref}  {nombre}{extra}"))
+        filas.append(fila_sim(tipo, f"{nombre}{extra}"))
 
     def fila_lin(lw, ls, txt):
         def f(ax, x, y):
@@ -1008,7 +1074,7 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
 
     def fila_eje(ax, x, y):
         simbolo_eje(ax, x + 3, y - 1.5, r=1.2)
-        ax.text(x + 8, y - 1.5, "S  Eje de artefacto sanitario", fontsize=7, va="center")
+        ax.text(x + 8, y - 1.5, "Eje de artefacto sanitario", fontsize=7, va="center")
     filas.append(fila_eje)
     y = _leyenda(ax, x, y, "REFERENCIAS", filas, paso=5.0)
     filas = []
@@ -1016,12 +1082,13 @@ def planta_instalaciones(obra: Obra, fecha, pagina):
         b = it["b"]
         alt = "techo" if b.altura is None else _f(b.altura) + ("*" if b.por_defecto else "")
         donde = it["cara"]["corto"] if it["cara"] is not None else ("techo" if b.tipo == "CENTRO" else "—")
-        filas.append((f"{it['codigo']:<5} h {alt:<7} {donde}", ROJO))
+        nombre = C.BOCAS.get(b.tipo, ("", b.tipo.title(), None))[1].split(" (")[0]
+        filas.append((f"{nombre} · techo" if b.altura is None else f"{nombre} · h {alt} · {donde}", ROJO))
     for it in obra.ejes:
         donde = it["cara"]["corto"] if it["cara"] is not None else "—"
-        filas.append(f"{it['codigo']:<5} {it['e'].artefacto} · {donde}")
+        filas.append(f"{it['e'].artefacto} · {donde}")
     if filas:
-        y = _leyenda(ax, x, y, "BOCAS Y EJES (código · altura · cara)", filas, fs=6.6, paso=3.6)
+        y = _leyenda(ax, x, y, "BOCAS Y EJES (tipo · altura · cara)", filas, fs=6.6, paso=3.6)
     notas = ["Cotas por fuera del dibujo, a eje de cada caja o artefacto, desde las caras terminadas (revestimiento, o "
              "SIP si no hay), desde la cara terminada más cercana sobre la que va (esquina o tabique). Cada boca se "
              "acota del lado hacia el que mira su cara; las de techo, en x abajo y en y a la izquierda. En rojo, "
@@ -1119,7 +1186,7 @@ def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
     for e in c["ejes"]:
         u = e["u"]
         ax.plot([X(u), X(u)], [Y(0), Y(zt(u)) + 2.5], color=NEGRO, lw=0.5, ls=TR_EJE, zorder=10)
-        ax.text(X(u), Y(zt(u)) + 3.0, f"{e['codigo']} {e['e'].artefacto}", fontsize=6.2, ha="center", va="bottom",
+        ax.text(X(u), Y(zt(u)) + 3.0, e["e"].artefacto, fontsize=6.2, ha="center", va="bottom",
                 zorder=13)
     # bocas
     alturas = {}
@@ -1127,9 +1194,9 @@ def dibujar_vista(ax, obra: Obra, c, x0, y0, k):
         b = bo["b"]
         u, h = bo["u"], b.altura or 0.0
         simbolo(ax, b.tipo, X(u), Y(h), r=1.5)
-        ax.text(X(u) + 2.2, Y(h) + 1.6, bo["codigo"] + ("*" if b.por_defecto else ""), fontsize=6.2,
-                fontweight="bold", ha="left", va="bottom", zorder=15, color=ROJO,
-                bbox=dict(boxstyle="square,pad=0.08", fc="white", ec="none"))
+        if b.por_defecto:                                    # altura típica (sin atributo ALTURA)
+            ax.text(X(u) + 2.2, Y(h) + 1.6, "*", fontsize=7, fontweight="bold", ha="left", va="bottom", zorder=15,
+                    color=ROJO)
         alturas.setdefault(round(h, 3), []).append(X(u))
         guias[round(u, 3)] = Y(h) - 1.6
     # cotas acumuladas (desde el extremo izquierdo), con línea guía de puntos desde cada elemento:

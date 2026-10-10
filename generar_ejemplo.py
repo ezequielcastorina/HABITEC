@@ -32,7 +32,7 @@ REV_INT_PLACA (yeso pegado), _OMEGA, _P35, _P70, _CERAMICO, _PVC: una linea sobr
 TABIQUE_DURLOCK: un rectangulo por tabique de durlock, con su espesor real.
 SANITARIOS: artefactos y equipamiento (lineas, circulos, bloques): se dibujan tal cual.
 PISO: sombreado o lineas del piso: se dibujan tal cual, con linea muy fina.
-ELECTRICIDAD: bloques ELEC_TOMA, ELEC_CENTRO, ELEC_LLAVE, ELEC_APLIQUE, ELEC_PASE (caja de pase)
+ELECTRICIDAD: bloques ELEC_TOMA, ELEC_TOMA_ESPECIAL (aire acond.), ELEC_CENTRO, ELEC_LLAVE, ELEC_APLIQUE, ELEC_PASE (caja de pase)
   y ELEC_TABLERO, sobre la cara del muro o tabique donde va la caja. ALTURA = cota del eje de la
   caja desde el piso (ej. 0.30); vacio: valor tipico del tipo. ELEC_CENTRO va en el techo.
 --- Solo para las laminas de obra in situ ---
@@ -69,6 +69,10 @@ def definir_bloques_electricidad(doc, k: float = 1.0) -> None:
         b.add_circle((0, 0), 0.06 * k)
         b.add_line((-0.06 * k, 0), (0.06 * k, 0))
         b.add_line((-0.08 * k, -0.06 * k), (0.08 * k, -0.06 * k))
+    if "ELEC_TOMA_ESPECIAL" not in doc.blocks:
+        b = doc.blocks.new("ELEC_TOMA_ESPECIAL")            # toma de uso especial (aire acondicionado, etc.)
+        b.add_circle((0, 0), 0.05 * k)
+        b.add_solid([(-0.035 * k, -0.035 * k), (0.035 * k, -0.035 * k), (-0.035 * k, 0.035 * k), (0.035 * k, 0.035 * k)])
     if "ELEC_PASE" not in doc.blocks:
         b = doc.blocks.new("ELEC_PASE")                     # caja de pase: cuadrado con cruz
         r = 0.05 * k
@@ -80,7 +84,7 @@ def definir_bloques_electricidad(doc, k: float = 1.0) -> None:
         w, h = 0.12 * k, 0.07 * k
         b.add_lwpolyline([(-w, -h), (w, -h), (w, h), (-w, h)], close=True)
         b.add_solid([(-w, -h), (w, -h), (-w, h)])
-    for nombre, defecto in (("ELEC_TOMA", "0.30"), ("ELEC_LLAVE", "1.10"), ("ELEC_APLIQUE", "2.00"),
+    for nombre, defecto in (("ELEC_TOMA", "0.30"), ("ELEC_TOMA_ESPECIAL", "2.00"), ("ELEC_LLAVE", "1.10"), ("ELEC_APLIQUE", "2.00"),
                             ("ELEC_PASE", "2.20"), ("ELEC_TABLERO", "1.50")):
         b = doc.blocks[nombre]
         if not any(a.dxf.tag == "ALTURA" for a in b.query("ATTDEF")):
@@ -196,6 +200,7 @@ def crear(ruta: str, unidades: str = "m") -> None:
     boca("TOMA", W - e, 1.30, 0.30)
     boca("TOMA", 0.60, H - e, 0.30)
     boca("APLIQUE", W - e, 4.20, 2.00)
+    boca("TOMA_ESPECIAL", 2.60, H - e, 2.00)                # aire acondicionado
     for pts, capa in (([(1.70, e), (W / 2, H / 2)], "ELEC_CANERIA"),
                       ([(1.45, e), (1.45, 0.30), (W / 2, H / 2)], "ELEC_CANERIA"),
                       ([(1.70, e), (2.40, e)], "ELEC_CANERIA"),
