@@ -36,12 +36,16 @@ resumen de paneles y los revestimientos que completa quien emite (interior, ciel
 «a definir». Es informativo: no cambia el despiece. En la web son campos; en la consola:
 `--interior "…" --cielorraso "…" --exterior "…" --obs "…" --rev 00`. El logo está embebido en `sip/logo_datos.py`.
 
-**Cara exterior de los paneles** (selector de la web, o `--piel-exterior smart|osb` en consola): es el único campo que sí cambia las hojas.
-Con *smart panel* (por defecto) todos los muros lo llevan; con *OSB* ningún muro lo lleva: las hojas muestran OSB en las dos caras y se omite el machimbrado
-exterior. La barrera de agua y viento, las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
+**Cara exterior de los paneles, cara por cara** (un selector por lado en la web, o `--piel-exterior smart|osb` y
+`--piel-lados "B=osb,C=osb"` en consola): es el único campo que sí cambia las hojas. En las caras con *smart panel* (por defecto)
+lo llevan todos sus paneles; en las caras con *OSB* (por ejemplo donde va WPC o chapa sobre clavaderas, solo al frente o en dos
+caras) no lo lleva ninguno: las hojas muestran OSB en las dos caras y se omite el machimbrado exterior. Si el plano tiene un
+revestimiento exterior dibujado (`REV_EXT_…`) que cubre más de la mitad de una cara, la web propone OSB en esa cara. Los tabiques
+interiores nunca llevan smart panel. La barrera de agua y viento, las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
 
 ## Cómo leer las hojas (también en blanco y negro)
 
+Las hojas muestran el panel desde el interior, así que no dibujan las tablas del smart panel (que está en la cara exterior).
 Cada elemento se distingue por su tipo de línea o trama, no por el color: contorno del panel, línea gruesa continua · rebaje perimetral de 30 mm, trazo largo ·
 rebaje de 55 mm alrededor del vano, trazo y punto · vano de corte, contorno grueso (fino donde llega al borde del panel) · tirante de junta 50 × 70, relleno gris claro (25 mm adentro y 25 mm que sobresalen) ·
 rebaje de 30 mm (sin EPS, recibe el tirante), rayado a 45° · tapa de esquina 25 × 70, trama cruzada · el machimbrado va como texto ("smart panel macho / hembra") sobre el borde.

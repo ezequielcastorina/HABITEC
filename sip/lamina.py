@@ -916,5 +916,19 @@ def _hoja_lamina(plano: Plano, cfg_usuario: dict | None, fecha: str):
 
 
 def lados_para_web(plano: Plano) -> list[dict]:
+    """Lados del módulo para el formulario de la cara exterior: letra, largo, hacia dónde mira y qué parte de
+    la cara tiene dibujado un revestimiento exterior (capas REV_EXT_*), que va sobre OSB."""
     nombres = {"A": "norte", "B": "este", "C": "sur", "D": "oeste"}
-    return [{"letra": l.letra, "largo": round(l.largo, 3), "mira": nombres[l.dir]} for l in plano.lados]
+    try:
+        muros = {m.letra: m for m in Modelo(plano, dict(CONFIG_BASE)).muros}
+    except Exception:                                        # noqa: BLE001
+        muros = {}
+    out = []
+    for l in plano.lados:
+        m = muros.get(l.letra)
+        rev = [(mat, b - a) for mat, a, b in (m.ext if m else []) if mat != EXT_DEFECTO]
+        cubre = sum(t for _, t in rev) / l.largo if l.largo else 0.0
+        out.append({"letra": l.letra, "largo": round(l.largo, 3), "mira": nombres[l.dir],
+                    "rev_ext": sorted({MATERIALES.get(mat, {}).get("nombre", mat) for mat, _ in rev}),
+                    "cubre": round(cubre, 2)})
+    return out

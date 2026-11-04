@@ -218,6 +218,16 @@ def test_cara_exterior_osb():
     d2 = calcular(leer_plano(base(), "Prueba"))
     assert all(m.smart for m in d2.muros)
     assert (out / "hojas_taller.pdf").exists()
+    # cara por cara: WPC sobre OSB solo en el frente (C) y en B
+    d3 = calcular(leer_plano(base(), "Prueba"), "smart", {"C": "osb", "B": "osb"})
+    assert all(not m.smart for m in d3.muros if m.lado in "BC") and all(m.smart for m in d3.muros if m.lado in "AD")
+    from sip.caratula import Caratula, texto_cara_exterior
+    car = Caratula.desde({"piel_lados": "C=osb, b=OSB"})
+    assert car.lados() == {"C": "osb", "B": "osb"}
+    assert texto_cara_exterior(d3) == "Smart panel en A, D · OSB en B, C"
+    out2 = tmp / "salida_lados"
+    generar(base(), "Casa WPC", "auto", out2, caratula={"piel_lados": "C=osb"}, log=lambda t: None)
+    assert (out2 / "caratula.pdf").exists()
 
 
 def test_modulo_con_escalon():

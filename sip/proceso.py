@@ -47,7 +47,7 @@ def generar(dxf: str | Path, proyecto: str, unidades: str = "auto",
 
     plano = leer_plano(dxf, proyecto, unidades)
     car = Caratula.desde(caratula)
-    d = calcular(plano, car.piel_exterior)
+    d = calcular(plano, car.piel_exterior, car.lados())
     informe_txt(d, out / "informe_validacion.txt", car)
 
     res = Resultado(carpeta=out, alertas=list(d.alertas), n_muros=len(d.muros),

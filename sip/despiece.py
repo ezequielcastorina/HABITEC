@@ -67,7 +67,9 @@ def _tiene_muro_lateral(caida: str | None) -> dict[str, bool]:
 # ----------------------------------------------------------------------------------
 # Despiece principal
 # ----------------------------------------------------------------------------------
-def calcular(plano: Plano, piel_exterior: str = "smart") -> Despiece:
+def calcular(plano: Plano, piel_exterior: str = "smart", piel_lados: dict | None = None) -> Despiece:
+    """piel_exterior: cara exterior de todos los muros ("smart" u "osb"); piel_lados la cambia cara por cara
+    ({"A": "osb", ...}), por ejemplo donde va WPC o chapa sobre OSB."""
     alertas: list[str] = list(plano.avisos)
     avisos: list[str] = list(plano.notas)
     m = plano.modulo
@@ -166,11 +168,12 @@ def calcular(plano: Plano, piel_exterior: str = "smart") -> Despiece:
     # --- Revestimiento ---------------------------------------------------------------------------
     # Cara exterior de los muros. Con smart panel (por defecto) lo llevan todos, ajustes incluidos
     # (cara exterior, tablas verticales; un bloque REV_BLOQUE cambia la cara o el sentido).
-    # Con piel "osb" ningún muro lleva smart panel: OSB en las dos caras.
-    if piel_exterior == "smart":
-        for p in muros:
-            if p.lado == "I":                  # los tabiques interiores no llevan smart panel
-                continue
+    # Con piel "osb" el muro no lleva smart panel: OSB en las dos caras. Se elige cara por cara.
+    piel_lados = {k.upper(): v for k, v in (piel_lados or {}).items()}
+    for p in muros:
+        if p.lado == "I":                      # los tabiques interiores no llevan smart panel
+            continue
+        if piel_lados.get(p.lado, piel_exterior) == "smart":
             p.smart, p.cara_rev, p.sentido_rev = True, "exterior", "vertical"
             for mk in plano.marcas_rev:
                 if p.rect.contiene(mk.x, mk.y):

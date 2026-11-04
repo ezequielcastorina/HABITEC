@@ -35,6 +35,7 @@ class Caratula:
     observaciones: str = ""
     revision: str = "00"
     piel_exterior: str = "smart"   # "smart" o "osb": la cara exterior de los paneles (cambia las hojas)
+    piel_lados: str = ""           # la misma elección cara por cara, ej. "A=osb,B=smart" (pisa a piel_exterior)
     esquina: str = "NO"            # esquina de arranque del montaje: letras de sus lados ("A-F") o NO/NE/SO/SE
     parrillas: str = "no"          # "si" si el camión lleva las parrillas de piso
 
@@ -45,9 +46,36 @@ class Caratula:
         datos = datos or {}
         car = cls(**{k: str(datos.get(k, getattr(cls(), k)) or "") for k in asdict(cls())})
         car.piel_exterior = "osb" if car.piel_exterior.strip().lower().startswith("osb") else "smart"
+        if isinstance(datos.get("piel_lados"), dict):
+            car.piel_lados = ",".join(f"{k}={v}" for k, v in datos["piel_lados"].items())
         car.esquina = car.esquina.strip().upper() or "NO"
         car.parrillas = "si" if car.parrillas.strip().lower() in ("si", "sí", "true", "1") else "no"
         return car
+
+
+    def lados(self) -> dict:
+        """{"A": "smart" | "osb", ...} de piel_lados."""
+        out = {}
+        for parte in self.piel_lados.replace(";", ",").split(","):
+            if "=" in parte:
+                k, v = parte.split("=", 1)
+                if k.strip():
+                    out[k.strip().upper()] = "osb" if v.strip().lower().startswith("osb") else "smart"
+        return out
+
+
+def texto_cara_exterior(d: Despiece) -> str:
+    """'Smart panel', 'OSB (sin smart panel)' o, si cambia de una cara a otra, 'Smart panel en A, B · OSB en C'."""
+    smart, osb = [], []
+    for lado in d.plano.lados:
+        ps = [p for p in d.muros if p.lado == lado.letra]
+        if ps:
+            (smart if any(p.smart for p in ps) else osb).append(lado.letra)
+    if not osb:
+        return "Smart panel"
+    if not smart:
+        return "OSB (sin smart panel)"
+    return f"Smart panel en {', '.join(smart)} · OSB en {', '.join(osb)}"
 
 
 def _envolver(txt: str, n: int) -> list[str]:
@@ -78,7 +106,7 @@ def hoja_caratula(d: Despiece, car: Caratula, fecha: str, pagina: str = ""):
     ax.text(12 + ancho_logo + 7, PAG_H - 28, "Hojas de taller · Paneles SIP", fontsize=10.5, color=GRIS, ha="left", va="center")
     ax.plot([12, 180], [PAG_H - 36, PAG_H - 36], color=NEGRO, lw=0.8)
 
-    osb = car.piel_exterior == "osb"
+    cara_ext = texto_cara_exterior(d)
 
     axo_modulo(ax, d, (12, 14, 172, 154))
 
@@ -116,14 +144,15 @@ def hoja_caratula(d: Despiece, car: Caratula, fecha: str, pagina: str = ""):
     n_tab = sum(1 for p in d.muros if p.lado == "I")
     y = fila(y, "Muros", f"{len(d.muros)} paneles ({len(est_m)} estándar, {len(aj_m)} de ajuste)"
                          + (f"; {n_tab} son tabiques interiores" if n_tab else ""))
-    y = fila(y, "Cara ext.", "OSB (sin smart panel)" if osb else "Smart panel")
+    y = fila(y, "Cara ext.", cara_ext)
     y = fila(y, "Techo", f"{len(d.techos)} paneles ({len(est_t)} estándar, {len(aj_t)} de ajuste)")
     tipos = {}
     for v in pl.vanos:
         tipos[C.TIPOS_VANO.get(v.tipo, v.tipo)] = tipos.get(C.TIPOS_VANO.get(v.tipo, v.tipo), 0) + 1
     y = fila(y, "Vanos", ", ".join(f"{n} {t.lower()}" for t, n in tipos.items()) or "ninguno")
     y = fila(y, "Muro alto", f"{mm(C.ALTO_PANEL_BAJO)} mm en el lado de la caída; {mm(C.ALTO_PANEL)} mm en el resto")
-    y = fila(y, "Espesor", f"{mm(C.ESPESOR_PANEL)} mm (" + ("OSB 9" if osb else "smart panel 9") + " + EPS 70 + OSB 9)")
+    piel = {"Smart panel": "smart panel 9", "OSB (sin smart panel)": "OSB 9"}.get(cara_ext, "smart panel u OSB 9")
+    y = fila(y, "Espesor", f"{mm(C.ESPESOR_PANEL)} mm ({piel} + EPS 70 + OSB 9)")
     y -= 3
 
     y = titulo("REVESTIMIENTOS Y TERMINACIONES", y)

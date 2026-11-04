@@ -298,19 +298,8 @@ def hoja_muro(d: Despiece, p: PanelMuro, fecha: str, pagina: str = ""):
     cuadro_titulo(ax, d.plano.proyecto, p.codigo, "Vista interior", esc, fecha, pagina)
 
     # Base del panel
+    # La hoja muestra la cara interior: las tablas del smart panel (cara exterior) no se dibujan, para no confundir.
     L.rect(0, 0, p.largo, p.alto, fc="white", ec="none", lw=0, zorder=2)
-    if p.smart:
-        paso = 0.15
-        if p.sentido_rev == "vertical":
-            u = paso
-            while u < p.largo:
-                L.linea(u, 0, u, p.alto, color="#7d7d7d", lw=0.5, zorder=2)
-                u += paso
-        else:
-            v = paso
-            while v < p.alto:
-                L.linea(0, v, p.largo, v, color="#7d7d7d", lw=0.5, zorder=2)
-                v += paso
     # Rebaje perimetral
     r = C.REBAJE_PERIMETRAL
     L.rect(r, r, p.largo - r, p.alto - r, fill=False, ls=TR_PERIMETRAL, ec=AZUL, lw=1.0, zorder=3)
