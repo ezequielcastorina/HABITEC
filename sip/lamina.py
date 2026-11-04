@@ -917,7 +917,7 @@ def _hoja_lamina(plano: Plano, cfg_usuario: dict | None, fecha: str):
 
 def lados_para_web(plano: Plano) -> list[dict]:
     """Lados del módulo para el formulario de la cara exterior: letra, largo, hacia dónde mira y qué parte de
-    la cara tiene dibujado un revestimiento exterior (capas REV_EXT_*), que va sobre OSB."""
+    la cara tiene dibujado un revestimiento exterior (capas REV_EXT_*, que va sobre el smart panel)."""
     nombres = {"A": "norte", "B": "este", "C": "sur", "D": "oeste"}
     try:
         muros = {m.letra: m for m in Modelo(plano, dict(CONFIG_BASE)).muros}

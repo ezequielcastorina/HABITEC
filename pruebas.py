@@ -218,7 +218,7 @@ def test_cara_exterior_osb():
     d2 = calcular(leer_plano(base(), "Prueba"))
     assert all(m.smart for m in d2.muros)
     assert (out / "hojas_taller.pdf").exists()
-    # cara por cara: WPC sobre OSB solo en el frente (C) y en B
+    # cara por cara: OSB solo en B y C
     d3 = calcular(leer_plano(base(), "Prueba"), "smart", {"C": "osb", "B": "osb"})
     assert all(not m.smart for m in d3.muros if m.lado in "BC") and all(m.smart for m in d3.muros if m.lado in "AD")
     from sip.caratula import Caratula, texto_cara_exterior

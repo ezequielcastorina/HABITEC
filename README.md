@@ -38,10 +38,11 @@ resumen de paneles y los revestimientos que completa quien emite (interior, ciel
 
 **Cara exterior de los paneles, cara por cara** (un selector por lado en la web, o `--piel-exterior smart|osb` y
 `--piel-lados "B=osb,C=osb"` en consola): es el único campo que sí cambia las hojas. En las caras con *smart panel* (por defecto)
-lo llevan todos sus paneles; en las caras con *OSB* (por ejemplo donde va WPC o chapa sobre clavaderas, solo al frente o en dos
-caras) no lo lleva ninguno: las hojas muestran OSB en las dos caras y se omite el machimbrado exterior. Si el plano tiene un
-revestimiento exterior dibujado (`REV_EXT_…`) que cubre más de la mitad de una cara, la web propone OSB en esa cara. Los tabiques
-interiores nunca llevan smart panel. La barrera de agua y viento, las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
+lo llevan todos sus paneles; en las caras con *OSB* no lo lleva ninguno: las hojas muestran OSB en las dos caras y se omite el
+machimbrado exterior. El WPC y la chapa van **sobre el smart panel** (así el smart hace de impermeabilización y no hace falta
+barrera de agua y viento), de modo que una cara con WPC sigue siendo smart: la web arranca todas las caras en smart panel y solo
+muestra, como dato, qué revestimiento exterior tiene dibujado cada una (`REV_EXT_…`). Los tabiques interiores nunca llevan
+smart panel. Las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
 
 ## Cómo leer las hojas (también en blanco y negro)
 

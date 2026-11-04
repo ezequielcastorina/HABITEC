@@ -28,7 +28,7 @@ def main(argv=None):
     ap.add_argument("--piel-exterior", choices=["smart", "osb"], default="smart",
                     help="Cara exterior de los paneles de muro: smart panel (por defecto) u OSB")
     ap.add_argument("--piel-lados", default="",
-                    help="Cara exterior cara por cara, ej. \"A=osb,C=osb\" (donde va WPC o chapa sobre OSB)")
+                    help="Cara exterior cara por cara, ej. \"A=osb,C=osb\" (caras sin smart panel)")
     ap.add_argument("--esquina", default="NO",
                     help="Esquina donde arranca el montaje, por letras (A-F, A-B...) o NO/NE/SO/SE (define la secuencia de carga del camión)")
     ap.add_argument("--parrillas", action="store_true", help="El camión lleva las parrillas de piso")
