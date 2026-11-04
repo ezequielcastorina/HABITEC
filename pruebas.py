@@ -367,6 +367,15 @@ def test_obra_in_situ():
     figs[0].savefig(tmp / "obra.pdf")
 
 
+
+def test_plantilla_ascii():
+    """La plantilla de AutoCAD va solo con caracteres comunes: con tildes o ñ hay AutoCAD que no la abre."""
+    ruta = base()
+    texto = ruta.read_bytes().decode("utf8")
+    raros = sorted({c for c in texto if ord(c) > 127})
+    assert not raros, raros
+
+
 if __name__ == "__main__":
     for nombre, f in list(globals().items()):
         if nombre.startswith("test_"):
