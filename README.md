@@ -177,4 +177,7 @@ La lámina 3 del PDF (y la solapa «Carga camión» del Excel) da el orden de ca
 3. Tabiques interiores.
 4. Techo, al final (se carga último, se descarga primero y se monta último), ordenado desde la esquina de arranque hacia el lado opuesto.
 
-La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C…). En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F` (y `--parrillas`). También se aceptan NO|NE|SO|SE (esquina convexa más cercana).
+La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C…). Los lados, mirando la planta del DXF:
+**A** es el lado horizontal más alto y los demás siguen en sentido horario; en un rectángulo, **A** arriba, **B** derecha,
+**C** abajo y **D** izquierda, así que A-B es la esquina de arriba a la derecha, B-C abajo a la derecha, C-D abajo a la
+izquierda y A-D arriba a la izquierda. El plano de nomenclatura (lámina 2) muestra las letras. En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F` (y `--parrillas`). También se aceptan NO|NE|SO|SE (esquina convexa más cercana).
