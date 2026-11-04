@@ -4,7 +4,7 @@ Uso:
     python generar_hojas.py plano.dxf --proyecto "Casa Pérez" [--unidades m|cm|mm|auto]
                             [--salida carpeta] [--solo-validar]
                             [--interior "…"] [--cielorraso "…"] [--exterior "…"] [--obs "…"] [--rev 00]
-                            [--piel-exterior smart|osb]
+                            [--piel-exterior smart|osb] [--piel-lados "A=osb,C=osb"]
 
 Si el plano está en DWG, convertirlo antes a DXF (Guardar como... DXF en AutoCAD).
 Sin --salida, deja los archivos en una carpeta junto al DXF con el sufijo _hojas.
@@ -27,6 +27,8 @@ def main(argv=None):
     ap.add_argument("--rev", default="00", help="Número de revisión (carátula)")
     ap.add_argument("--piel-exterior", choices=["smart", "osb"], default="smart",
                     help="Cara exterior de los paneles de muro: smart panel (por defecto) u OSB")
+    ap.add_argument("--piel-lados", default="",
+                    help="Cara exterior cara por cara, ej. \"A=osb,C=osb\" (donde va WPC o chapa sobre OSB)")
     ap.add_argument("--esquina", default="NO",
                     help="Esquina donde arranca el montaje, por letras (A-F, A-B...) o NO/NE/SO/SE (define la secuencia de carga del camión)")
     ap.add_argument("--parrillas", action="store_true", help="El camión lleva las parrillas de piso")
@@ -34,7 +36,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     generar(a.dxf, a.proyecto, a.unidades, a.salida, a.solo_validar, caratula={
         "interior": a.interior, "cielorraso": a.cielorraso, "exterior": a.exterior,
-        "observaciones": a.obs, "revision": a.rev, "piel_exterior": a.piel_exterior,
+        "observaciones": a.obs, "revision": a.rev, "piel_exterior": a.piel_exterior, "piel_lados": a.piel_lados,
         "esquina": a.esquina, "parrillas": "si" if a.parrillas else "no"})
 
 

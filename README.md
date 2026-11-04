@@ -36,12 +36,16 @@ resumen de paneles y los revestimientos que completa quien emite (interior, ciel
 «a definir». Es informativo: no cambia el despiece. En la web son campos; en la consola:
 `--interior "…" --cielorraso "…" --exterior "…" --obs "…" --rev 00`. El logo está embebido en `sip/logo_datos.py`.
 
-**Cara exterior de los paneles** (selector de la web, o `--piel-exterior smart|osb` en consola): es el único campo que sí cambia las hojas.
-Con *smart panel* (por defecto) todos los muros lo llevan; con *OSB* ningún muro lo lleva: las hojas muestran OSB en las dos caras y se omite el machimbrado
-exterior. La barrera de agua y viento, las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
+**Cara exterior de los paneles, cara por cara** (un selector por lado en la web, o `--piel-exterior smart|osb` y
+`--piel-lados "B=osb,C=osb"` en consola): es el único campo que sí cambia las hojas. En las caras con *smart panel* (por defecto)
+lo llevan todos sus paneles; en las caras con *OSB* (por ejemplo donde va WPC o chapa sobre clavaderas, solo al frente o en dos
+caras) no lo lleva ninguno: las hojas muestran OSB en las dos caras y se omite el machimbrado exterior. Si el plano tiene un
+revestimiento exterior dibujado (`REV_EXT_…`) que cubre más de la mitad de una cara, la web propone OSB en esa cara. Los tabiques
+interiores nunca llevan smart panel. La barrera de agua y viento, las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
 
 ## Cómo leer las hojas (también en blanco y negro)
 
+Las hojas muestran el panel desde el interior, así que no dibujan las tablas del smart panel (que está en la cara exterior).
 Cada elemento se distingue por su tipo de línea o trama, no por el color: contorno del panel, línea gruesa continua · rebaje perimetral de 30 mm, trazo largo ·
 rebaje de 55 mm alrededor del vano, trazo y punto · vano de corte, contorno grueso (fino donde llega al borde del panel) · tirante de junta 50 × 70, relleno gris claro (25 mm adentro y 25 mm que sobresalen) ·
 rebaje de 30 mm (sin EPS, recibe el tirante), rayado a 45° · tapa de esquina 25 × 70, trama cruzada · el machimbrado va como texto ("smart panel macho / hembra") sobre el borde.
@@ -74,7 +78,9 @@ Cada archivo es un único módulo. Todo en rectángulos cerrados, ejes alineados
 | `TABIQUE_DURLOCK` | Solo lámina gráfica. Un rectángulo por tabique de durlock (con su espesor real). No entra al despiece; las puertas que caen en él no generan alertas |
 | `SANITARIOS` | Solo lámina gráfica. Artefactos y equipamiento (líneas, polilíneas, círculos, elipses o bloques): se dibujan tal cual |
 | `PISO` | Solo lámina gráfica. Sombreado o líneas del piso: se dibujan tal cual, con línea muy fina y tono claro |
-| `ELECTRICIDAD` | Solo lámina gráfica. Bloques `ELEC_TOMA`, `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE` (vienen en la plantilla) |
+| `ELECTRICIDAD` | Lámina gráfica y obra in situ. Bloques `ELEC_TOMA`, `ELEC_TOMA_ESPECIAL` (uso especial: aire acondicionado, etc.), `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE`, `ELEC_PASE` (caja de pase) y `ELEC_TABLERO` (vienen en la plantilla), insertados sobre la cara del muro o tabique donde va la caja. Atributo `ALTURA`: eje de la caja desde el piso |
+| `ELEC_CANERIA`, `ELEC_CANERIA_VISTA` | Solo obra in situ. Líneas de boca a boca y hasta el tablero: embutidas o vistas sobre el módulo. Se dibujan, no se acotan |
+| `SAN_EJE` | Solo obra in situ. Bloque `SAN_EJE` en el eje de cada artefacto, con el atributo `ARTEFACTO` (Inodoro, Lavatorio…) |
 | `PUERTA_GIRO` | Hoja y arco de cada puerta. Queda en el DXF; no sale en la lámina gráfica |
 | `PANEL_REV` | Opcional. Todos los muros llevan smart panel (cara exterior, sentido vertical), ajustes incluidos; un bloque `REV_BLOQUE` dentro de un panel cambia la cara o el sentido |
 
@@ -127,12 +133,44 @@ fila o de a dos por fila, lo que deje todo más grande.
 * Cotas, todas por fuera y en un tono más claro: dos totales del módulo (sin revestimiento) y una fila por lado de medidas interiores
   terminadas, sin repetir valores.
 * Vistas de las caras con aberturas (o de todas): VISTA FRENTE (la cara con la puerta), LATERAL y POSTERIOR. Sin pendiente
-  visible: los laterales van rectos al alto del lado alto y la cara de la caída al del lado bajo (panel + piso). Zinguería inferior
+  visible: los laterales van rectos al alto del lado alto y la cara de la caída al del lado bajo: el alto del panel (2,44 / 2,22), porque el piso interior arranca al nivel del panel
+  y la parrilla queda tapada por la zinguería inferior. Antepecho y dintel de los vanos se miden desde la base. Zinguería inferior
   completa, de esquina por encima y superior; dos espesores de línea (grueso: zinguerías, vanos y tierra; muy fino y claro: tramas).
 * Rótulo: logo, MÓDULO + nombre, área del módulo y fecha de emisión.
 
 En la web se editan el espesor y el dibujo de cada revestimiento (las claves coinciden con el nombre de la capa: `REV_EXT_WPC` → `wpc`),
 el piso y las zinguerías. Para un revestimiento nuevo se crea la capa en AutoCAD y se lo agrega con el mismo nombre.
+
+## Obra in situ (posterior al montaje)
+
+Sección 5 de la web. Láminas A3 apaisadas, en blanco y negro (mismo lenguaje que las hojas de taller) y a escala (1:25 si
+entra), para que el equipo de obra sepa dónde va cada revestimiento interior, cada tabique, cada boca y cada artefacto.
+Salen del mismo DXF y usan los revestimientos editados en la sección 4 (con sus espesores). Todas las cotas en metros, al
+revestimiento terminado (donde no hay revestimiento, al SIP o a la placa del tabique) y por fuera del dibujo, con líneas guía
+de puntos. Todo lo de electricidad (bocas, cañerías, sus cotas y alturas) va en rojo; el resto, en blanco y negro.
+
+1. **Planta 1 · Revestimientos interiores y tabiques.** Código de revestimiento por tramo y por local (R1, R2… con su nombre y
+   espesor en la referencia; OSB = SIP visto; DL = placa de un tabique de durlock). Por fuera de cada muro, una cadena medida
+   sobre su cara interior terminada: esquinas, cambios de revestimiento y caras terminadas de los tabiques que llegan. Más
+   afuera, una cadena por tabique (T01, T02…: los paneles alineados forman una tira; uno en L son dos): de través sus caras
+   terminadas (si ningún muro las acota ya) y a lo largo sus extremos, si uno queda libre, desde la cara terminada más cercana.
+2. **Planta 2 · Instalaciones.** Bocas con la simbología de la oficina (toma polarizado a tierra, toma de uso especial,
+   tablero, boca de techo, boca de pared, llave, caja de pase), apoyadas en su cara y rotuladas solo con su altura; cañerías solo dibujadas (de puntos: embutida; continua gruesa: vista); ejes de artefactos, rotulados con el
+   artefacto (Inodoro, Ducha…). Por fuera: cada caja (en rojo) o eje, a eje desde la cara terminada más cercana sobre la que va
+   (esquina o tabique); las bocas de techo, en x y en y. Las que salen de la misma cara forman una cadena. Tabla de bocas con altura y cara.
+3. **Vistas interiores.** Una por muro y por cara de tabique, vista desde el local: revestimientos (trama por código), tabiques
+   que llegan (con trama: son los únicos rayados), vanos, bocas y ejes; los revestimientos, sin trama, con su código y el
+   cambio de tramo. Abajo, filas de cotas acumuladas desde el extremo izquierdo, con línea guía de puntos desde cada elemento
+   (caras: tabiques, cambios de revestimiento y vanos; electr., en rojo: bocas; sanit.: artefactos) y, a la derecha, alturas
+   desde el piso (bocas en rojo, antepechos, dinteles y alto del muro). Se ve la pendiente del techo: altura libre de 2,31 junto al muro alto y 2,22 junto al de la
+   caída (`ALTO_INTERIOR_ALTO` y `ALTO_PANEL_BAJO` en `sip/config.py`), en los muros laterales y en los tabiques.
+
+Las cotas de las plantas van al lado más cercano a lo que miden, equiparando la cantidad de filas de los lados opuestos
+(a lo sumo una de diferencia); cuando un número no entra en su tramo, va al costado, a la misma altura.
+
+Si un bloque `ELEC_*` no trae `ALTURA` se usa la típica del tipo y sale marcada con `*`: tablero 1,50 · toma 0,30 · toma de uso especial 2,00 ·
+llave 1,10 · aplique 2,00 · caja de pase 2,20 (`sip/config.py`, `BOCAS`). Una boca que no queda sobre ningún muro ni tabique
+(salvo las de techo) se avisa y no sale en las vistas.
 
 ## Secuencia de carga del camión
 
@@ -143,4 +181,7 @@ La lámina 3 del PDF (y la solapa «Carga camión» del Excel) da el orden de ca
 3. Tabiques interiores.
 4. Techo, al final (se carga último, se descarga primero y se monta último), ordenado desde la esquina de arranque hacia el lado opuesto.
 
-La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C…). En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F` (y `--parrillas`). También se aceptan NO|NE|SO|SE (esquina convexa más cercana).
+La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C…). Los lados, mirando la planta del DXF:
+**A** es el lado horizontal más alto y los demás siguen en sentido horario; en un rectángulo, **A** arriba, **B** derecha,
+**C** abajo y **D** izquierda, así que A-B es la esquina de arriba a la derecha, B-C abajo a la derecha, C-D abajo a la
+izquierda y A-D arriba a la izquierda. El plano de nomenclatura (lámina 2) muestra las letras. En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F` (y `--parrillas`). También se aceptan NO|NE|SO|SE (esquina convexa más cercana).

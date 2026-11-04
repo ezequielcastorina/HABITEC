@@ -71,6 +71,24 @@ class VanoLeido:
 
 
 @dataclass
+class Boca:
+    """Boca eléctrica (bloque ELEC_<TIPO>): caja de toma, llave, aplique, centro, pase o tablero."""
+    tipo: str                    # TOMA, LLAVE, APLIQUE, CENTRO, PASE, TABLERO (u otro nombre de bloque)
+    x: float
+    y: float
+    altura: Optional[float]      # eje de la caja desde la base (m); None en las de techo
+    por_defecto: bool = False    # el bloque no trae ALTURA: se tomó la de config.BOCAS
+
+
+@dataclass
+class EjeSanitario:
+    """Eje de un artefacto sanitario (bloque SAN_EJE)."""
+    artefacto: str
+    x: float
+    y: float
+
+
+@dataclass
 class MarcaRevestimiento:
     x: float
     y: float
@@ -98,6 +116,9 @@ class Plano:
     electricidad: list = field(default_factory=list)       # [(puntos, cerrado)] de la capa ELECTRICIDAD
     piso: list = field(default_factory=list)               # [(puntos, cerrado)] de la capa PISO (sombreados -> líneas)
     revestimientos: list = field(default_factory=list)     # [(cara 'EXT'|'INT', clave, (x0, y0), (x1, y1))] de REV_EXT_* / REV_INT_*
+    bocas: list = field(default_factory=list)              # Boca (bloques ELEC_* de la capa ELECTRICIDAD)
+    canerias: list = field(default_factory=list)           # [(puntos, vista)] de ELEC_CANERIA / ELEC_CANERIA_VISTA
+    ejes_sanitarios: list = field(default_factory=list)    # EjeSanitario (capa SAN_EJE)
 
 
 @dataclass
