@@ -218,7 +218,7 @@ def test_cara_exterior_osb():
     d2 = calcular(leer_plano(base(), "Prueba"))
     assert all(m.smart for m in d2.muros)
     assert (out / "hojas_taller.pdf").exists()
-    # cara por cara: WPC sobre OSB solo en el frente (C) y en B
+    # cara por cara: OSB solo en B y C
     d3 = calcular(leer_plano(base(), "Prueba"), "smart", {"C": "osb", "B": "osb"})
     assert all(not m.smart for m in d3.muros if m.lado in "BC") and all(m.smart for m in d3.muros if m.lado in "AD")
     from sip.caratula import Caratula, texto_cara_exterior
@@ -365,6 +365,15 @@ def test_obra_in_situ():
     figs, avisos = hojas_obra(pl, {}, "01/01/2026")
     assert len(figs) >= 3 and not avisos, avisos
     figs[0].savefig(tmp / "obra.pdf")
+
+
+
+def test_plantilla_ascii():
+    """La plantilla de AutoCAD va solo con caracteres comunes: con tildes o ñ hay AutoCAD que no la abre."""
+    ruta = base()
+    texto = ruta.read_bytes().decode("utf8")
+    raros = sorted({c for c in texto if ord(c) > 127})
+    assert not raros, raros
 
 
 if __name__ == "__main__":

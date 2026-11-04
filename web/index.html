@@ -94,9 +94,10 @@
       <button id="bPielSmart" class="chico" type="button">Todas smart panel</button>
       <button id="bPielOsb" class="chico" type="button">Todas OSB</button>
     </div>
-    <p class="nota">Esta opción sí cambia las hojas: en las caras con OSB desaparecen el smart panel y el machimbrado exterior
-      (por ejemplo, donde va WPC o chapa sobre clavaderas). Si el plano tiene dibujado un revestimiento exterior
-      (<code>REV_EXT_…</code>) que cubre más de la mitad de una cara, esa cara arranca en OSB. Lo demás de la carátula es informativo.</p>
+    <p class="nota">Esta opción sí cambia las hojas: en las caras con OSB desaparecen el smart panel y el machimbrado exterior.
+      El WPC y la chapa van sobre el smart panel (el smart hace de impermeabilización), así que una cara con WPC sigue en smart.
+      Al lado de cada cara se ve, como dato, el revestimiento exterior que tiene dibujado el plano (<code>REV_EXT_…</code>).
+      Lo demás de la carátula es informativo.</p>
     <label for="esquina">Esquina donde arranca el montaje</label>
     <select id="esquina" disabled><option value="NO">Se completa al cargar el plano</option></select>
     <p class="nota">Lados del módulo, mirando la planta del DXF: <strong>A</strong> es el lado de arriba y los demás siguen en
@@ -232,12 +233,12 @@ function llenarPieles(lista) {
   const cont = $("pieles");
   if (!lista.length) { cont.innerHTML = '<span class="nota">No se pudo leer el contorno.</span>'; pieles = {}; return; }
   const nuevo = {};
-  for (const l of lista) nuevo[l.letra] = l.letra in pieles ? pieles[l.letra] : (l.cubre > 0.5 ? "osb" : "smart");
+  for (const l of lista) nuevo[l.letra] = l.letra in pieles ? pieles[l.letra] : "smart";
   pieles = nuevo;
   cont.innerHTML = lista.map((l) => {
     const rev = l.rev_ext.length ? ` · en el plano: ${l.rev_ext.join(", ")} (${Math.round(l.cubre * 100)} %)` : "";
     return `<div><label for="piel_${l.letra}">Lado ${l.letra} <span>(${MIRA[l.mira] || l.mira}, ${l.largo.toFixed(2).replace(".", ",")} m${rev})</span></label>
-      <select id="piel_${l.letra}" data-letra="${l.letra}"><option value="smart">Smart panel</option><option value="osb">OSB (WPC, chapa u otro encima)</option></select></div>`;
+      <select id="piel_${l.letra}" data-letra="${l.letra}"><option value="smart">Smart panel</option><option value="osb">OSB (sin smart panel)</option></select></div>`;
   }).join("");
   for (const l of lista) $("piel_" + l.letra).value = pieles[l.letra];
 }

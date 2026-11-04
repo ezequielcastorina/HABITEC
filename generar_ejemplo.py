@@ -36,8 +36,8 @@ ELECTRICIDAD: bloques ELEC_TOMA, ELEC_TOMA_ESPECIAL (aire acond.), ELEC_CENTRO, 
   y ELEC_TABLERO, sobre la cara del muro o tabique donde va la caja. ALTURA = cota del eje de la
   caja desde el piso (ej. 0.30); vacio: valor tipico del tipo. ELEC_CENTRO va en el techo.
 --- Solo para las laminas de obra in situ ---
-ELEC_CANERIA: lineas de boca a boca y hasta el tablero (cañeria embutida). Solo se dibujan.
-ELEC_CANERIA_VISTA: idem, para las cañerias que quedan vistas sobre el modulo.
+ELEC_CANERIA: lineas de boca a boca y hasta el tablero (caneria embutida). Solo se dibujan.
+ELEC_CANERIA_VISTA: idem, para las canerias que quedan vistas sobre el modulo.
 SAN_EJE: bloque SAN_EJE en el eje de cada artefacto (ARTEFACTO = nombre, ej. Inodoro).
 PUERTA_GIRO: hoja y arco de cada puerta (queda en el DXF; no sale en la lamina grafica).
 Guardar: SAVEAS > AutoCAD DXF (2018 o anterior). La capa LEEME no se lee."""
@@ -97,7 +97,7 @@ def definir_bloques_electricidad(doc, k: float = 1.0) -> None:
         b.add_line((-2 * r, 0), (2 * r, 0))
         b.add_line((0, -2 * r), (0, 2 * r))
         b.add_attdef("ARTEFACTO", (0.06 * k, 0.06 * k), "Inodoro", dxfattribs={
-            "height": 0.05 * k, "prompt": "Artefacto (Inodoro, Lavatorio, Ducha, Pileta…)"})
+            "height": 0.05 * k, "prompt": "Artefacto (Inodoro, Lavatorio, Ducha, Pileta...)"})
 INSUNITS = {"m": 6, "cm": 5, "mm": 4}
 
 

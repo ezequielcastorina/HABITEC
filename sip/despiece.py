@@ -69,7 +69,7 @@ def _tiene_muro_lateral(caida: str | None) -> dict[str, bool]:
 # ----------------------------------------------------------------------------------
 def calcular(plano: Plano, piel_exterior: str = "smart", piel_lados: dict | None = None) -> Despiece:
     """piel_exterior: cara exterior de todos los muros ("smart" u "osb"); piel_lados la cambia cara por cara
-    ({"A": "osb", ...}), por ejemplo donde va WPC o chapa sobre OSB."""
+    ({"A": "osb", ...}). El WPC o la chapa van sobre el smart panel: no cambian esta elección."""
     alertas: list[str] = list(plano.avisos)
     avisos: list[str] = list(plano.notas)
     m = plano.modulo
