@@ -21,6 +21,7 @@ Criterio de cálculo (todo editable en `reglas`):
   (solera). Los más chicos se toman como lleno.
 * Montantes y omegas: uno cada `sep_muro` (más el del extremo); cada pieza sale de una barra entera si
   entra, y los recortes (sobre el dintel, bajo el antepecho) se suman por metro lineal.
+  Los cortos salen primero de los recortes de las barras; lo que no entra, por metro lineal.
   Soleras: por metro lineal (dos por cara). Cielorraso: soleras perimetrales y montantes cada
   `sep_cielorraso` cruzando la luz corta, por metro lineal (se admiten empalmes).
 * Perfil de ajuste: del lado interior de cada vano de una cara con durlock, en todo su perímetro (sin el lado
@@ -125,24 +126,40 @@ def _estructura(cp: Computo, L, h0, h1, vanos, sistema, con_soleras, contra_sip,
     h = (lambda s: h0 + (h1 - h0) * (s / L if L else 0))
     n = max(1, math.ceil(L / sep - 1e-6))
     pos = [min(k * sep, L) for k in range(n + 1)]
-    barras, ml_corto, piezas = 0, 0.0, 0
+    barras, piezas = 0, 0
+    cortos, recortes = [], []                            # piezas sobre dinteles / bajo antepechos; sobrantes de barra
+
+    def entero(alto):
+        nonlocal barras, piezas
+        nb = math.ceil(alto / PL - 1e-6)
+        barras += nb
+        piezas += 1
+        recortes.append(nb * PL - alto)
     for s in pos:
         dentro = [v for v in vanos if v[0] + 1e-3 < s < v[1] - 1e-3]
         if dentro:
             a, b, z0, z1 = dentro[0]
             if h(s) - z1 > 0.05:
-                ml_corto += h(s) - z1
-                piezas += 1
+                cortos.append(h(s) - z1)
             if z0 > 0.05:
-                ml_corto += z0
-                piezas += 1
+                cortos.append(z0)
         else:
-            barras += math.ceil(h(s) / PL - 1e-6)
-            piezas += 1
+            entero(h(s))
     for a, b, z0, z1 in vanos:                           # jambas: dos montantes enteros
         for s in (a, b):
-            barras += math.ceil(h(s) / PL - 1e-6)
-            piezas += 1
+            entero(h(s))
+    # los cortos salen primero de los recortes de las barras (el más largo en el recorte más chico que lo admite);
+    # lo que no entra se pide por metro lineal
+    ml_corto, ml_corto_nuevo = sum(cortos), 0.0
+    for c in sorted(cortos, reverse=True):
+        piezas += 1
+        sirve = [r for r in recortes if r >= c - 1e-6]
+        if sirve:
+            r = min(sirve)
+            recortes.remove(r)
+            recortes.append(r - c)
+        else:
+            ml_corto_nuevo += c
     ml_solera = 0.0
     if con_soleras:
         ml_solera = 2 * L
@@ -150,7 +167,7 @@ def _estructura(cp: Computo, L, h0, h1, vanos, sistema, con_soleras, contra_sip,
         ml_solera += (b - a) * (1 if z0 <= 0.01 else 2)  # dintel (y antepecho)
         if z0 <= 0.01 and con_soleras:
             ml_solera -= (b - a)                           # la solera inferior se corta en la puerta
-    cp.sumar(f"{montante} {cp.barra()}", barras + ml_corto / PL)
+    cp.sumar(f"{montante} {cp.barra()}", barras + ml_corto_nuevo / PL)
     cp.sumar(f"{solera} {cp.barra()}", ml_solera / PL)
     ml_total = sum(h(s) for s in pos) + ml_corto + ml_solera
     if sistema != "omega":
@@ -326,6 +343,8 @@ def calcular_materiales(plano, cfg: dict | None = None) -> dict:
         f"{R['tornillo_t2']}: {R['t2_m2']:g} por m² de placa · {R['tornillo_t1']}: {R['t1_montante']:g} por montante · "
         f"fijación de perfiles al SIP y de tabiques a piso y techo ({R['tornillo_fijacion']}): uno cada {_n(R['fijacion_cada'])} m "
         f"en muros y cada {_n(R['fijacion_cielorraso'])} m en el cielorraso.",
+        "Montantes: cada cara con los suyos (dos en cada esquina) y dos jambas por vano descontado; los cortos sobre "
+        "dinteles y bajo antepechos salen de los recortes de las barras.",
         "Perfil de ajuste del lado interior de todos los vanos de las caras con durlock, en todo su perímetro "
         "(sin el lado de abajo en los que llegan al piso).",
         "Alturas libres bajo el techo; largos a la cara interior del SIP. Durlock pegado: solo placas (sin adhesivo).",
