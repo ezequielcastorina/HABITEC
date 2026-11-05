@@ -86,10 +86,6 @@
     <h2>2 · Revestimientos y carátula</h2>
     <label style="margin-top:0">Revestimientos cara por cara (exterior e interior de cada lado)</label>
     <div id="pieles"><span class="nota">Se completa al cargar el plano.</span></div>
-    <div class="fila" style="margin-top:4px">
-      <div><label for="todasExt">Exterior de todas las caras</label><select id="todasExt"></select></div>
-      <div><label for="todasInt">Interior de todas las caras</label><select id="todasInt"></select></div>
-    </div>
     <p class="nota">Se eligen acá y no hace falta dibujarlos en el DXF: valen para la lámina gráfica, las láminas de obra y
       el cálculo de materiales. Todos los muros llevan smart panel; el WPC y la chapa van encima (el smart hace de
       impermeabilización). Si el plano trae líneas <code>REV_EXT_…</code> o <code>REV_INT_…</code> con tramos, aparece la
@@ -414,16 +410,8 @@ function llenarPieles(lista) {
       <td><select id="int_${l.letra}" data-letra="${l.letra}" data-cara="int" aria-label="Interior del lado ${l.letra}">${optsHtml(oi, l.int_dxf === "plano" || caras[l.letra].int === "plano")}</select></td></tr>`).join("") +
     "</tbody></table>";
   for (const l of lista) { $("ext_" + l.letra).value = caras[l.letra].ext; $("int_" + l.letra).value = caras[l.letra].int; }
-  $("todasExt").innerHTML = '<option value="">—</option>' + optsHtml(oe, false);
-  $("todasInt").innerHTML = '<option value="">—</option>' + optsHtml(oi, false);
 }
 $("pieles").addEventListener("change", (e) => { const d = e.target.dataset; if (d.letra) caras[d.letra][d.cara] = e.target.value; });
-function todas(cara, v) {
-  if (!v) return;
-  for (const k of Object.keys(caras)) { caras[k][cara] = v; $(cara + "_" + k).value = v; }
-}
-$("todasExt").addEventListener("change", (e) => { todas("ext", e.target.value); e.target.value = ""; });
-$("todasInt").addEventListener("change", (e) => { todas("int", e.target.value); e.target.value = ""; });
 function llenarTabiques(lista) {
   tabDur = lista || [];
   const cont = $("tabsDur");
