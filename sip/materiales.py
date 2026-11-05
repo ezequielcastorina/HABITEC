@@ -21,6 +21,7 @@ Criterio de cálculo (todo editable en `reglas`):
   (solera). Los más chicos se toman como lleno.
 * Montantes y omegas: uno cada `sep_muro` (más el del extremo); cada pieza sale de una barra entera si
   entra, y los recortes (sobre el dintel, bajo el antepecho) se suman por metro lineal.
+  Los cortos salen primero de los recortes de las barras; lo que no entra, por metro lineal.
   Soleras: por metro lineal (dos por cara). Cielorraso: soleras perimetrales y montantes cada
   `sep_cielorraso` cruzando la luz corta, por metro lineal (se admiten empalmes).
 * Perfil de ajuste: del lado interior de cada vano de una cara con durlock, en todo su perímetro (sin el lado
@@ -28,7 +29,8 @@ Criterio de cálculo (todo editable en `reglas`):
 * Tornillos: T2 placa-perfil por m² de placa y por capa; T1 solo perfil-perfil (por cada pieza de montante);
   T2 también en la fijación de perfiles al SIP (soleras, montantes y omegas apoyados en el SIP) uno cada `fijacion_cada`
   (en el cielorraso, cada `fijacion_cielorraso`).
-* Al final se suma el desperdicio a todo y se redondea hacia arriba, por unidad.
+* Al final se suma el desperdicio (uno para placas y tornillos y otro para perfiles) y se redondea hacia
+  arriba, por unidad.
 """
 from __future__ import annotations
 
@@ -55,7 +57,8 @@ REGLAS_BASE = {
     "tornillo_t2": "Tornillo T2",
     "tornillo_t1": "Tornillo T1 punta mecha (perfil-perfil)",
     "tornillo_fijacion": "Tornillo T2",
-    "desperdicio": 15,              # %
+    "desperdicio_placas": 10,       # % sobre las placas y los tornillos (siempre se pierden)
+    "desperdicio_perfiles": 5,      # % sobre los perfiles
     "umbral_vano": 1.0,             # m²: se descuentan los vanos más grandes que esto
 }
 
@@ -105,10 +108,12 @@ class Computo:
         self.sumar(self.placa(esp_mm, tipo), m2 / (R["placa_ancho"] * R["placa_largo"]))
 
     def lista(self):
-        f = 1 + float(self.R["desperdicio"]) / 100
+        fp = 1 + float(self.R["desperdicio_placas"]) / 100
+        fr = 1 + float(self.R["desperdicio_perfiles"]) / 100
         orden = ("Placa", "Solera", "Montante", "Omega", "Perfil de ajuste")
         clave = lambda k: next((j for j, o in enumerate(orden) if k.startswith(o)), len(orden))
-        return [(math.ceil(v * f - 1e-6), k) for k, v in sorted(self.bruto.items(), key=lambda kv: clave(kv[0]))]
+        return [(math.ceil(v * (fp if k.startswith(("Placa", "Tornillo")) else fr) - 1e-6), k)
+                for k, v in sorted(self.bruto.items(), key=lambda kv: clave(kv[0]))]
 
 
 # --------------------------------------------------------------------------------------------
@@ -125,24 +130,40 @@ def _estructura(cp: Computo, L, h0, h1, vanos, sistema, con_soleras, contra_sip,
     h = (lambda s: h0 + (h1 - h0) * (s / L if L else 0))
     n = max(1, math.ceil(L / sep - 1e-6))
     pos = [min(k * sep, L) for k in range(n + 1)]
-    barras, ml_corto, piezas = 0, 0.0, 0
+    barras, piezas = 0, 0
+    cortos, recortes = [], []                            # piezas sobre dinteles / bajo antepechos; sobrantes de barra
+
+    def entero(alto):
+        nonlocal barras, piezas
+        nb = math.ceil(alto / PL - 1e-6)
+        barras += nb
+        piezas += 1
+        recortes.append(nb * PL - alto)
     for s in pos:
         dentro = [v for v in vanos if v[0] + 1e-3 < s < v[1] - 1e-3]
         if dentro:
             a, b, z0, z1 = dentro[0]
             if h(s) - z1 > 0.05:
-                ml_corto += h(s) - z1
-                piezas += 1
+                cortos.append(h(s) - z1)
             if z0 > 0.05:
-                ml_corto += z0
-                piezas += 1
+                cortos.append(z0)
         else:
-            barras += math.ceil(h(s) / PL - 1e-6)
-            piezas += 1
+            entero(h(s))
     for a, b, z0, z1 in vanos:                           # jambas: dos montantes enteros
         for s in (a, b):
-            barras += math.ceil(h(s) / PL - 1e-6)
-            piezas += 1
+            entero(h(s))
+    # los cortos salen primero de los recortes de las barras (el más largo en el recorte más chico que lo admite);
+    # lo que no entra se pide por metro lineal
+    ml_corto, ml_corto_nuevo = sum(cortos), 0.0
+    for c in sorted(cortos, reverse=True):
+        piezas += 1
+        sirve = [r for r in recortes if r >= c - 1e-6]
+        if sirve:
+            r = min(sirve)
+            recortes.remove(r)
+            recortes.append(r - c)
+        else:
+            ml_corto_nuevo += c
     ml_solera = 0.0
     if con_soleras:
         ml_solera = 2 * L
@@ -150,7 +171,7 @@ def _estructura(cp: Computo, L, h0, h1, vanos, sistema, con_soleras, contra_sip,
         ml_solera += (b - a) * (1 if z0 <= 0.01 else 2)  # dintel (y antepecho)
         if z0 <= 0.01 and con_soleras:
             ml_solera -= (b - a)                           # la solera inferior se corta en la puerta
-    cp.sumar(f"{montante} {cp.barra()}", barras + ml_corto / PL)
+    cp.sumar(f"{montante} {cp.barra()}", barras + ml_corto_nuevo / PL)
     cp.sumar(f"{solera} {cp.barra()}", ml_solera / PL)
     ml_total = sum(h(s) for s in pos) + ml_corto + ml_solera
     if sistema != "omega":
@@ -183,7 +204,12 @@ def _cota_vano(v):
 def calcular_materiales(plano, cfg: dict | None = None) -> dict:
     from .obra import Obra
     cfg = dict(cfg or {})
-    R = {**REGLAS_BASE, **{k: v for k, v in (cfg.get("reglas") or {}).items() if v not in (None, "")}}
+    rg = dict(cfg.get("reglas") or {})
+    if rg.get("desperdicio") not in (None, ""):          # un solo valor (versión anterior): vale para los dos
+        rg.setdefault("desperdicio_placas", rg["desperdicio"])
+        rg.setdefault("desperdicio_perfiles", rg["desperdicio"])
+    rg.pop("desperdicio", None)
+    R = {**REGLAS_BASE, **{k: v for k, v in rg.items() if v not in (None, "")}}
     for k, v in REGLAS_BASE.items():
         if isinstance(v, (int, float)):
             R[k] = float(R[k])
@@ -320,12 +346,15 @@ def calcular_materiales(plano, cfg: dict | None = None) -> dict:
     if not cp.detalle:
         cp.avisos.append("No hay ninguna cara con durlock: elegí el revestimiento interior de las caras o el cielorraso.")
     cp.notas = [
-        f"Desperdicio {R['desperdicio']:g} % sobre todo, redondeado por unidad.",
+        f"Desperdicio {R['desperdicio_placas']:g} % en placas y tornillos y {R['desperdicio_perfiles']:g} % en perfiles, "
+        "redondeado por unidad.",
         f"Se descuentan los vanos de más de {_n(R['umbral_vano'])} m²; los más chicos se toman como lleno.",
         f"Montantes y omegas cada {_n(R['sep_muro'])} m (cielorraso cada {_n(R['sep_cielorraso'])} m); perfiles de {_n(R['perfil_largo'])} m.",
         f"{R['tornillo_t2']}: {R['t2_m2']:g} por m² de placa · {R['tornillo_t1']}: {R['t1_montante']:g} por montante · "
         f"fijación de perfiles al SIP y de tabiques a piso y techo ({R['tornillo_fijacion']}): uno cada {_n(R['fijacion_cada'])} m "
         f"en muros y cada {_n(R['fijacion_cielorraso'])} m en el cielorraso.",
+        "Montantes: cada cara con los suyos (dos en cada esquina) y dos jambas por vano descontado; los cortos sobre "
+        "dinteles y bajo antepechos salen de los recortes de las barras.",
         "Perfil de ajuste del lado interior de todos los vanos de las caras con durlock, en todo su perímetro "
         "(sin el lado de abajo en los que llegan al piso).",
         "Alturas libres bajo el techo; largos a la cara interior del SIP. Durlock pegado: solo placas (sin adhesivo).",

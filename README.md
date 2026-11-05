@@ -208,5 +208,5 @@ Del DXF solo se toman las medidas, los vanos y la posición de los tabiques. Tod
   los más chicos se toman como lleno.
 * Tornillos: T2 placa-perfil, 15 por m² de placa y por capa; T1 solo perfil-perfil, 4 por montante; T2 también para
   fijar los perfiles al SIP (y las soleras de los tabiques a piso y techo), uno cada 60 cm en muros y cada 30 cm en el cielorraso.
-* Desperdicio 15 % sobre todo, redondeado hacia arriba. Durlock pegado: solo placas (el adhesivo no se computa).
+* Desperdicio: 10 % en placas y tornillos y 5 % en perfiles (dos valores editables), redondeado hacia arriba. Durlock pegado: solo placas (el adhesivo no se computa).
 * Simplificación: la estructura de los muros no descuenta la altura que ocupa un cielorraso sobre perfil.

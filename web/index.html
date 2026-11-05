@@ -178,7 +178,8 @@
       (capa <code>TABIQUE_DURLOCK</code>). Sale en un PDF y un Excel aparte (no va en las hojas de taller); el Excel de
       la sección 3 también trae la solapa «Materiales».</p>
     <div class="fila4">
-      <div><label for="rg_desperdicio">Desperdicio (%)</label><input id="rg_desperdicio" type="number" step="1" min="0"></div>
+      <div><label for="rg_desperdicio_placas">Desperdicio placas y tornillos (%)</label><input id="rg_desperdicio_placas" type="number" step="1" min="0"></div>
+      <div><label for="rg_desperdicio_perfiles">Desperdicio perfiles (%)</label><input id="rg_desperdicio_perfiles" type="number" step="1" min="0"></div>
       <div><label for="rg_umbral_vano">Descontar vanos de más de (m²)</label><input id="rg_umbral_vano" type="number" step="0.1" min="0"></div>
       <div><label for="rg_placa_muro">Placa de muros (mm)</label><select id="rg_placa_muro"><option>9.5</option><option>12.5</option><option>15</option></select></div>
       <div><label for="rg_placa_cielorraso">Placa de cielorraso (mm)</label><select id="rg_placa_cielorraso"><option>9.5</option><option>12.5</option><option>15</option></select></div>
@@ -541,11 +542,11 @@ function mostrarObra(m) {
 
 let vigiaMat = null;
 // --- Materiales de durlock ---------------------------------------------------------------------
-const REGLAS_DEF = { desperdicio: 15, umbral_vano: 1, placa_muro: "12.5", placa_cielorraso: "9.5", placa_ancho: 1.2,
+const REGLAS_DEF = { desperdicio_placas: 10, desperdicio_perfiles: 5, umbral_vano: 1, placa_muro: "12.5", placa_cielorraso: "9.5", placa_ancho: 1.2,
   placa_largo: 2.4, perfil_largo: 2.6, sep_muro: 0.4, sep_cielorraso: 0.4, t2_m2: 15, t1_montante: 4, fijacion_cada: 0.6, fijacion_cielorraso: 0.3,
   tornillo_fijacion: "Tornillo T2", tornillo_t1: "Tornillo T1 punta mecha (perfil-perfil)" };
 let reglas = Object.assign({}, REGLAS_DEF);
-try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas4") || "{}")); } catch (e) {}
+try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas5") || "{}")); } catch (e) {}
 try { const c = localStorage.getItem("habitec_cielo"); if (c) $("cielo").value = c; } catch (e) {}
 $("cielo").addEventListener("change", () => { try { localStorage.setItem("habitec_cielo", $("cielo").value); } catch (e) {} });
 function pintarReglas() { for (const k of Object.keys(REGLAS_DEF)) $("rg_" + k).value = reglas[k]; }
@@ -553,10 +554,10 @@ for (const k of Object.keys(REGLAS_DEF)) {
   $("rg_" + k).addEventListener("input", () => {
     const el = $("rg_" + k);
     reglas[k] = el.type === "number" ? el.value : el.value;
-    try { localStorage.setItem("habitec_reglas4", JSON.stringify(reglas)); } catch (e) {}
+    try { localStorage.setItem("habitec_reglas5", JSON.stringify(reglas)); } catch (e) {}
   });
 }
-$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas4"); } catch (e) {} pintarReglas(); };
+$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas5"); } catch (e) {} pintarReglas(); };
 pintarReglas();
 function cfgMateriales() {
   const r = {};
