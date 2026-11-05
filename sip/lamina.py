@@ -256,6 +256,16 @@ class Modelo:
                 m.int_ = _superponer(m.int_, clave, a, b)
         if sin_muro:
             self.avisos.append(f"{sin_muro} línea(s) de revestimiento no quedan junto a ningún muro (se ignoran).")
+        # Lo elegido en la web cara por cara pisa a las líneas del DXF en toda la cara ("plano" o vacío: según el DXF).
+        for m in self.muros:
+            c = (self.cfg.get("caras") or {}).get(m.letra) or {}
+            for cara, attr in (("ext", "ext"), ("int", "int_")):
+                k = str(c.get(cara) or "").lower()
+                if k and k != "plano":
+                    if k in self.mats:
+                        setattr(m, attr, [(k, 0.0, m.largo)])
+                    else:
+                        self.avisos.append(f"Lado {m.letra}: revestimiento «{k}» desconocido (se ignora).")
 
     # esquinas: intersección de los lados desplazados (lados horizontales y verticales)
     def esq_ini(self, i, off, off_prev):
@@ -928,7 +938,11 @@ def lados_para_web(plano: Plano) -> list[dict]:
         m = muros.get(l.letra)
         rev = [(mat, b - a) for mat, a, b in (m.ext if m else []) if mat != EXT_DEFECTO]
         cubre = sum(t for _, t in rev) / l.largo if l.largo else 0.0
+        ri = [mat for mat, a, b in (m.int_ if m else []) if mat != INT_DEFECTO]
         out.append({"letra": l.letra, "largo": round(l.largo, 3), "mira": nombres[l.dir],
                     "rev_ext": sorted({MATERIALES.get(mat, {}).get("nombre", mat) for mat, _ in rev}),
-                    "cubre": round(cubre, 2)})
+                    "cubre": round(cubre, 2),
+                    # lo que dibuja el DXF en la cara (para proponerlo en la web): una clave o "plano" si hay tramos
+                    "ext_dxf": (rev[0][0] if len({x for x, _ in rev}) == 1 and cubre > 0.98 else "plano") if rev else "",
+                    "int_dxf": (ri[0] if len(m.int_) == 1 else "plano") if ri else ""})
     return out

@@ -84,6 +84,16 @@ return async (m) => {
       if (!salida.ok) { postMessage({ tipo: "obra", salida }); return; }
       const buf = leerArchivo(salida.ruta);
       postMessage({ tipo: "obra", salida, buf }, [buf]);
+    } else if (m.tipo === "tabiques") {
+      const lista = JSON.parse(puente.tabiques(new Uint8Array(m.dxf), m.unidades));
+      postMessage({ tipo: "tabiques", lista });
+    } else if (m.tipo === "materiales") {
+      estado("Calculando materiales de durlock…");
+      await new Promise((r) => setTimeout(r, 60));
+      const salida = JSON.parse(puente.materiales(new Uint8Array(m.dxf), m.proyecto, m.unidades, JSON.stringify(m.cfg)));
+      if (!salida.ok) { postMessage({ tipo: "materiales", salida }); return; }
+      const pdf = leerArchivo(salida.pdf), xlsx = leerArchivo(salida.xlsx);
+      postMessage({ tipo: "materiales", salida, pdf, xlsx }, [pdf, xlsx]);
     } else if (m.tipo === "plantilla") {
       const ruta = puente.plantilla();
       const buf = leerArchivo(ruta);

@@ -33,16 +33,17 @@ Para uso técnico (opcional) sigue existiendo la línea de comandos: `python gen
 
 La primera hoja del PDF es la carátula: marca HABITEC, proyecto, fecha de emisión y revisión, dos axonometrías esquemáticas (muros y techo),
 resumen de paneles y los revestimientos que completa quien emite (interior, cielorraso, exterior, observaciones). Lo que queda vacío figura como
-«a definir». Es informativo: no cambia el despiece. En la web son campos; en la consola:
+«a definir». Es informativo: no cambia el despiece. En la web, interior, cielorraso y exterior salen solos de lo elegido cara por cara (solo se escriben las observaciones y la revisión); en la consola:
 `--interior "…" --cielorraso "…" --exterior "…" --obs "…" --rev 00`. El logo está embebido en `sip/logo_datos.py`.
 
-**Cara exterior de los paneles, cara por cara** (un selector por lado en la web, o `--piel-exterior smart|osb` y
-`--piel-lados "B=osb,C=osb"` en consola): es el único campo que sí cambia las hojas. En las caras con *smart panel* (por defecto)
-lo llevan todos sus paneles; en las caras con *OSB* no lo lleva ninguno: las hojas muestran OSB en las dos caras y se omite el
-machimbrado exterior. El WPC y la chapa van **sobre el smart panel** (así el smart hace de impermeabilización y no hace falta
-barrera de agua y viento), de modo que una cara con WPC sigue siendo smart: la web arranca todas las caras en smart panel y solo
-muestra, como dato, qué revestimiento exterior tiene dibujado cada una (`REV_EXT_…`). Los tabiques interiores nunca llevan
-smart panel. Las zonas de WPC o chapa y el revestimiento del techo se colocan en obra y no figuran en las hojas.
+**Revestimientos cara por cara** (sección 2 de la web): por cada lado se elige el exterior (smart panel, smart + WPC,
+smart + chapa) y el interior (OSB visto, durlock pegado, sobre omega, sobre perfil 35 o 70); además, el cielorraso (uno
+por módulo) y, por cada tabique de la capa `TABIQUE_DURLOCK`, su estructura, placas por cara, tipo de placa y alto.
+**No hace falta dibujarlos en el DXF**: valen para la lámina gráfica, las láminas de obra y el cálculo de materiales.
+Si el plano trae líneas `REV_EXT_…` / `REV_INT_…` con tramos, aparece la opción «según el plano» para respetarlas.
+Todos los muros llevan smart panel: el WPC y la chapa van **sobre el smart panel** (el smart hace de impermeabilización).
+Los tabiques interiores nunca llevan smart panel. Las zonas de WPC o chapa y el revestimiento del techo se colocan en
+obra y no figuran en las hojas. (En consola sigue existiendo `--piel-lados "B=osb"` para una cara sin smart panel.)
 
 ## Cómo leer las hojas (también en blanco y negro)
 
@@ -74,9 +75,9 @@ Cada archivo es un único módulo. Todo en rectángulos cerrados, ejes alineados
 | `PANEL` | Un rectángulo por panel de muro (ancho × 90 mm), apoyado sobre el contorno. En las juntas las líneas se superponen. Los paneles que no apoyan sobre el contorno se toman como tabiques interiores |
 | `TECHO` | Un rectángulo por panel de techo, en planta |
 | `VANO` | Rectángulo con la medida de la abertura (**sin huelgo**), superpuesto a los paneles que atraviesa, y dentro de él un bloque `VANO_BLOQUE` |
-| `REV_EXT_CHAPA`, `REV_EXT_WPC` | Solo lámina gráfica. Una línea sobre la cara exterior del muro, en el tramo que lleva ese revestimiento. Sin línea: smart panel |
-| `REV_INT_PLACA`, `_OMEGA`, `_P35`, `_P70`, `_CERAMICO`, `_PVC` | Solo lámina gráfica. Una línea sobre la cara interior del muro (o de un tabique) en el tramo que lleva ese revestimiento. Sin línea: OSB visto |
-| `TABIQUE_DURLOCK` | Solo lámina gráfica. Un rectángulo por tabique de durlock (con su espesor real). No entra al despiece; las puertas que caen en él no generan alertas |
+| `REV_EXT_CHAPA`, `REV_EXT_WPC` | Opcional (se elige en la web). Solo lámina gráfica. Una línea sobre la cara exterior del muro, en el tramo que lleva ese revestimiento. Sin línea: smart panel |
+| `REV_INT_PLACA`, `_OMEGA`, `_P35`, `_P70`, `_CERAMICO`, `_PVC` | Opcional en los muros (se elige en la web); necesario en las caras de los tabiques. Una línea sobre la cara interior del muro (o de un tabique) en el tramo que lleva ese revestimiento. Sin línea: OSB visto |
+| `TABIQUE_DURLOCK` | Un rectángulo por tabique de durlock (con su espesor real): lámina gráfica, obra in situ y materiales (la estructura y las placas se eligen en la web). No entra al despiece; las puertas que caen en él no generan alertas |
 | `SANITARIOS` | Solo lámina gráfica. Artefactos y equipamiento (líneas, polilíneas, círculos, elipses o bloques): se dibujan tal cual |
 | `PISO` | Solo lámina gráfica. Sombreado o líneas del piso: se dibujan tal cual, con línea muy fina y tono claro |
 | `ELECTRICIDAD` | Lámina gráfica y obra in situ. Bloques `ELEC_TOMA`, `ELEC_TOMA_ESPECIAL` (uso especial: aire acondicionado, etc.), `ELEC_CENTRO`, `ELEC_LLAVE`, `ELEC_APLIQUE`, `ELEC_PASE` (caja de pase) y `ELEC_TABLERO` (vienen en la plantilla), insertados sobre la cara del muro o tabique donde va la caja. Atributo `ALTURA`: eje de la caja desde el piso |
@@ -186,3 +187,26 @@ La esquina de arranque se nombra por las letras de sus dos lados (A-F, A-B, B-C�
 **A** es el lado horizontal más alto y los demás siguen en sentido horario; en un rectángulo, **A** arriba, **B** derecha,
 **C** abajo y **D** izquierda, así que A-B es la esquina de arriba a la derecha, B-C abajo a la derecha, C-D abajo a la
 izquierda y A-D arriba a la izquierda. El plano de nomenclatura (lámina 2) muestra las letras. En la web el selector se completa al cargar el DXF con todas las esquinas convexas del contorno; en la línea de comandos: `--esquina A-F` (y `--parrillas`). También se aceptan NO|NE|SO|SE (esquina convexa más cercana).
+
+## Materiales de durlock
+
+Sección 6 de la web: placas, perfiles y tornillería de las caras interiores, el cielorraso y los tabiques de durlock
+elegidos en la sección 2. Sale una lista de compra (Cantidad | Material, por unidad) en pantalla, en un **PDF aparte**
+(no va en las hojas de taller) y en un Excel; el Excel de la sección 3 también trae la solapa «Materiales».
+Del DXF solo se toman las medidas, los vanos y la posición de los tabiques. Todas las reglas se editan en la web:
+
+* Placa 1,20 × 2,40 (12,5 mm en muros y tabiques; 9,5 mm en cielorraso). Perfiles de 2,60 m: solera 35 / montante 34 o
+  solera 70 / montante 69, y omega.
+* Montantes u omegas cada 40 cm (más el del extremo), una barra por pieza; soleras abajo y arriba, por metro lineal.
+  Cielorraso: omegas (o montantes con soleras perimetrales) cada 30 cm cruzando la luz corta, por metro lineal;
+  la omega va directo al SIP con T2.
+* Perfil de ajuste: del lado interior de cada vano de las caras con durlock, en todo su perímetro (sin el lado de
+  abajo si el vano llega al piso), por metro lineal.
+* Alturas libres bajo el techo (2,31 junto al muro alto y 2,22 junto al de la caída; laterales y tabiques en trapecio);
+  largos a la cara interior del SIP.
+* Vanos: se descuentan solo los de más de 1 m² (placa y montantes cortados; se suman dos jambas y dintel/antepecho);
+  los más chicos se toman como lleno.
+* Tornillos: T2 placa-perfil, 15 por m² de placa y por capa; T1 solo perfil-perfil, 4 por montante; T2 también para
+  fijar los perfiles al SIP (y las soleras de los tabiques a piso y techo), uno cada 60 cm.
+* Desperdicio 15 % sobre todo, redondeado hacia arriba. Durlock pegado: solo placas (el adhesivo no se computa).
+* Simplificación: la estructura de los muros no descuenta la altura que ocupa un cielorraso sobre perfil.

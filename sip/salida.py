@@ -12,7 +12,7 @@ from .contorno import texto_caida
 from .modelo import Despiece
 
 
-def planilla_xlsx(d: Despiece, ruta: Path, car=None, fecha: str = "") -> None:
+def planilla_xlsx(d: Despiece, ruta: Path, car=None, fecha: str = "", materiales=None) -> None:
     wb = Workbook()
     ws = wb.active
     ws.title = "Paneles"
@@ -84,6 +84,9 @@ def planilla_xlsx(d: Despiece, ruta: Path, car=None, fecha: str = "") -> None:
     for i, a in enumerate(anchos, start=1):
         ws.column_dimensions[get_column_letter(i)].width = a
     ws.freeze_panes = ws.cell(row=fila0 + 1, column=1)
+    if materiales is not None:                      # solapa «Materiales» (durlock)
+        from .materiales import hoja_xlsx
+        hoja_xlsx(wb, materiales)
     wb.save(ruta)
 
 

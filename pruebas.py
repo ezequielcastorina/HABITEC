@@ -368,6 +368,45 @@ def test_obra_in_situ():
 
 
 
+def test_materiales_durlock():
+    """Cómputo de durlock: caras y cielorraso elegidos en la configuración (no en el DXF), vanos > 1 m² y tabiques."""
+    import tempfile
+    from sip.lamina import CONFIG_BASE, Modelo
+    from sip.materiales import calcular_materiales, pdf_materiales, xlsx_materiales
+    pl = correr(base()).plano
+    r0 = calcular_materiales(pl, {"caras": {l.letra: {"int": "sip"} for l in pl.lados}})
+    assert r0["lista"] == [] and r0["avisos"]                          # sin durlock: nada que comprar
+    cfg = {"caras": {l.letra: {"int": "p35"} for l in pl.lados}, "cielorraso": "omega"}
+    r = calcular_materiales(pl, cfg)
+    nombres = [m for _, m in r["lista"]]
+    assert nombres[0].startswith("Placa de yeso 12,5") and any(m.startswith("Placa de yeso 9,5") for m in nombres)
+    assert {"Solera 35 mm × 2,60 m", "Montante 34 mm × 2,60 m", "Omega × 2,60 m", "Tornillo T2", "Perfil de ajuste × 2,60 m"} <= set(nombres)
+    t1 = dict((m, c) for c, m in r["lista"])
+    assert t1["Tornillo T1 punta mecha (perfil-perfil)"] < t1["Tornillo T2"]
+    # el desperdicio sube todo; con umbral alto no se descuenta ningún vano
+    r2 = calcular_materiales(pl, {**cfg, "reglas": {"desperdicio": 30, "umbral_vano": 99}})
+    assert all(c2 >= c1 for (c1, _), (c2, _) in zip(r["lista"], r2["lista"]))
+    assert all(d["vanos"] == "—" for d in r2["detalle"])
+    # la elección de la web pisa al DXF en la lámina
+    mo = Modelo(pl, {**CONFIG_BASE, "caras": {"A": {"ext": "wpc", "int": "omega"}}})
+    a = next(m for m in mo.muros if m.letra == "A")
+    assert a.ext == [("wpc", 0.0, a.largo)] and a.int_ == [("omega", 0.0, a.largo)]
+
+    def agregar(doc, msp):
+        msp.add_lwpolyline([(1.60, 0.09), (1.70, 0.09), (1.70, 1.60), (1.60, 1.60)], close=True,
+                           dxfattribs={"layer": "TABIQUE_DURLOCK"})
+    pt = correr(modificar(base(), "mat.dxf", agregar)).plano
+    rt = calcular_materiales(pt, {"tabiques": {"T01": {"estructura": "70", "placas": 2, "tipo": "verde", "alto": 2.4}}})
+    nt = dict((m, c) for c, m in rt["lista"])
+    # 1,51 × 2,40 × 2 caras × 2 placas = 14,5 m² → 5,03 placas → +15 % → 6
+    assert nt["Placa de yeso 12,5 mm verde (resistente a la humedad) 1,20 × 2,40 m"] == 6
+    assert "Montante 69 mm × 2,60 m" in nt and "Solera 70 mm × 2,60 m" in nt
+    with tempfile.TemporaryDirectory() as tmp:
+        pdf_materiales(r, Path(tmp) / "m.pdf", "01/01/2026")
+        xlsx_materiales(r, Path(tmp) / "m.xlsx")
+        assert (Path(tmp) / "m.pdf").stat().st_size > 5000
+
+
 def test_plantilla_ascii():
     """La plantilla de AutoCAD va solo con caracteres comunes: con tildes o ñ hay AutoCAD que no la abre."""
     ruta = base()

@@ -71,7 +71,14 @@ def generar(dxf: str | Path, proyecto: str, unidades: str = "auto",
 
     log("\nGenerando hojas…")
     fecha = datetime.date.today().strftime("%d/%m/%Y")
-    planilla_xlsx(d, out / "planilla_paneles.xlsx", car, fecha)
+    mats = None
+    if isinstance(caratula, dict) and caratula.get("materiales"):
+        try:
+            from .materiales import calcular_materiales
+            mats = calcular_materiales(plano, caratula["materiales"])
+        except Exception as e:                       # noqa: BLE001  (no frena las hojas)
+            log(f"No se pudo calcular los materiales de durlock: {e}")
+    planilla_xlsx(d, out / "planilla_paneles.xlsx", car, fecha, mats)
     (out / "hojas").mkdir(exist_ok=True)
     total = 3 + len(d.muros) + len(d.techos)
 
