@@ -26,7 +26,8 @@ Criterio de cálculo (todo editable en `reglas`):
 * Perfil de ajuste: del lado interior de cada vano de una cara con durlock, en todo su perímetro (sin el lado
   de abajo si el vano llega al piso), por metro lineal.
 * Tornillos: T2 placa-perfil por m² de placa y por capa; T1 solo perfil-perfil (por cada pieza de montante);
-  T2 también en la fijación de perfiles al SIP (soleras, montantes y omegas apoyados en el SIP) uno cada `fijacion_cada`.
+  T2 también en la fijación de perfiles al SIP (soleras, montantes y omegas apoyados en el SIP) uno cada `fijacion_cada`
+  (en el cielorraso, cada `fijacion_cielorraso`).
 * Al final se suma el desperdicio a todo y se redondea hacia arriba, por unidad.
 """
 from __future__ import annotations
@@ -44,12 +45,13 @@ REGLAS_BASE = {
     "placa_largo": 2.40,            # m
     "perfil_largo": 2.60,           # m (soleras, montantes y omegas)
     "sep_muro": 0.40,               # m entre montantes u omegas de muros y tabiques
-    "sep_cielorraso": 0.30,         # m entre montantes u omegas del cielorraso (omega directo al SIP)
+    "sep_cielorraso": 0.40,         # m entre montantes u omegas del cielorraso (omega directo al SIP)
     "placa_muro": 12.5,             # mm
     "placa_cielorraso": 9.5,        # mm
     "t2_m2": 15,                    # tornillos T2 por m² de placa (por capa)
     "t1_montante": 4,               # tornillos T1 por pieza de montante (dos en cada punta)
-    "fijacion_cada": 0.60,          # m entre fijaciones de los perfiles al SIP
+    "fijacion_cada": 0.60,          # m entre fijaciones de los perfiles de muros al SIP
+    "fijacion_cielorraso": 0.30,    # m entre fijaciones de los perfiles del cielorraso al SIP
     "tornillo_t2": "Tornillo T2",
     "tornillo_t1": "Tornillo T1 punta mecha (perfil-perfil)",
     "tornillo_fijacion": "Tornillo T2",
@@ -268,7 +270,7 @@ def calcular_materiales(plano, cfg: dict | None = None) -> dict:
                 cp.sumar(f"{mon} {cp.barra()}", ml_m / PL)
                 cp.sumar(f"{sol} {cp.barra()}", ml_sol / PL)
                 cp.sumar(R["tornillo_t1"], piezas * R["t1_montante"])
-            cp.sumar(R["tornillo_fijacion"], (ml_m + ml_sol) / max(0.1, R["fijacion_cada"]))
+            cp.sumar(R["tornillo_fijacion"], (ml_m + ml_sol) / max(0.1, R["fijacion_cielorraso"]))
         cp.detalle.append({"elemento": "Cielorraso", "sistema": CIELORRASOS[cie], "largo": None, "alto": None,
                            "bruta": area, "vanos": "—", "neta": area, "capas": 1})
     elif cie not in CIELORRASOS:
@@ -322,7 +324,8 @@ def calcular_materiales(plano, cfg: dict | None = None) -> dict:
         f"Se descuentan los vanos de más de {_n(R['umbral_vano'])} m²; los más chicos se toman como lleno.",
         f"Montantes y omegas cada {_n(R['sep_muro'])} m (cielorraso cada {_n(R['sep_cielorraso'])} m); perfiles de {_n(R['perfil_largo'])} m.",
         f"{R['tornillo_t2']}: {R['t2_m2']:g} por m² de placa · {R['tornillo_t1']}: {R['t1_montante']:g} por montante · "
-        f"fijación de perfiles al SIP y de tabiques a piso y techo ({R['tornillo_fijacion']}): uno cada {_n(R['fijacion_cada'])} m.",
+        f"fijación de perfiles al SIP y de tabiques a piso y techo ({R['tornillo_fijacion']}): uno cada {_n(R['fijacion_cada'])} m "
+        f"en muros y cada {_n(R['fijacion_cielorraso'])} m en el cielorraso.",
         "Perfil de ajuste del lado interior de todos los vanos de las caras con durlock, en todo su perímetro "
         "(sin el lado de abajo en los que llegan al piso).",
         "Alturas libres bajo el techo; largos a la cara interior del SIP. Durlock pegado: solo placas (sin adhesivo).",

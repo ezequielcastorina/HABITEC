@@ -193,7 +193,8 @@
         <div><label for="rg_sep_cielorraso">Cielorraso: perfiles cada (m)</label><input id="rg_sep_cielorraso" type="number" step="0.01" min="0.1"></div>
         <div><label for="rg_t2_m2">T2 por m² de placa</label><input id="rg_t2_m2" type="number" step="1" min="0"></div>
         <div><label for="rg_t1_montante">T1 por montante</label><input id="rg_t1_montante" type="number" step="1" min="0"></div>
-        <div><label for="rg_fijacion_cada">Fijación al SIP cada (m)</label><input id="rg_fijacion_cada" type="number" step="0.05" min="0.1"></div>
+        <div><label for="rg_fijacion_cada">Muros: fijación al SIP cada (m)</label><input id="rg_fijacion_cada" type="number" step="0.05" min="0.1"></div>
+        <div><label for="rg_fijacion_cielorraso">Cielorraso: tornillo cada (m)</label><input id="rg_fijacion_cielorraso" type="number" step="0.05" min="0.1"></div>
       </div>
       <div class="fila">
         <div><label for="rg_tornillo_fijacion">Tornillo de fijación de perfiles al SIP</label><input id="rg_tornillo_fijacion" type="text" autocomplete="off"></div>
@@ -347,7 +348,8 @@ if (incrustado) {
   const recibir = crear((m) => setTimeout(() => worker.onmessage({ data: m }), 0));
   worker = { onmessage: null, postMessage: (m) => setTimeout(() => recibir(m), 30) };
 } else {
-  worker = new Worker("worker.js", { type: "module" });
+  // con ?v= el navegador no reusa un motor viejo guardado: uno viejo no conoce los pedidos nuevos y no contesta
+  worker = new Worker("worker.js?v=" + Date.now(), { type: "module" });
 }
 worker.postMessage({ tipo: "iniciar", pyodide: PYODIDE, wheels: WHEELS, zip: zipInc ? zipInc.buffer : null });
 
@@ -371,7 +373,11 @@ worker.onmessage = (ev) => {
   else if (m.tipo === "materiales") mostrarMat(m);
   else if (m.tipo === "lamina") mostrarLamina(m);
   else if (m.tipo === "obra") mostrarObra(m);
-  else if (m.tipo === "error") { ocupado = false; setEstado("Error: " + m.mensaje, true); refrescar(); }
+  else if (m.tipo === "error") {
+    ocupado = false; clearTimeout(vigiaMat); setEstado("Error: " + m.mensaje, true);
+    for (const id of ["estadoMat", "estadoLam", "estadoObra"]) if (/…$/.test($(id).textContent)) $(id).textContent = "Error: " + m.mensaje;
+    refrescar();
+  }
   else if (m.tipo === "archivo") { ocupado = false; setEstado("Listo."); descargar(m.nombre, m.buf, tipoDe(m.nombre)); refrescar(); }
   else if (m.tipo === "resultado") mostrar(m);
 };
@@ -533,12 +539,13 @@ function mostrarObra(m) {
   refrescar();
 }
 
+let vigiaMat = null;
 // --- Materiales de durlock ---------------------------------------------------------------------
 const REGLAS_DEF = { desperdicio: 15, umbral_vano: 1, placa_muro: "12.5", placa_cielorraso: "9.5", placa_ancho: 1.2,
-  placa_largo: 2.4, perfil_largo: 2.6, sep_muro: 0.4, sep_cielorraso: 0.3, t2_m2: 15, t1_montante: 4, fijacion_cada: 0.6,
+  placa_largo: 2.4, perfil_largo: 2.6, sep_muro: 0.4, sep_cielorraso: 0.4, t2_m2: 15, t1_montante: 4, fijacion_cada: 0.6, fijacion_cielorraso: 0.3,
   tornillo_fijacion: "Tornillo T2", tornillo_t1: "Tornillo T1 punta mecha (perfil-perfil)" };
 let reglas = Object.assign({}, REGLAS_DEF);
-try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas3") || "{}")); } catch (e) {}
+try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas4") || "{}")); } catch (e) {}
 try { const c = localStorage.getItem("habitec_cielo"); if (c) $("cielo").value = c; } catch (e) {}
 $("cielo").addEventListener("change", () => { try { localStorage.setItem("habitec_cielo", $("cielo").value); } catch (e) {} });
 function pintarReglas() { for (const k of Object.keys(REGLAS_DEF)) $("rg_" + k).value = reglas[k]; }
@@ -546,10 +553,10 @@ for (const k of Object.keys(REGLAS_DEF)) {
   $("rg_" + k).addEventListener("input", () => {
     const el = $("rg_" + k);
     reglas[k] = el.type === "number" ? el.value : el.value;
-    try { localStorage.setItem("habitec_reglas3", JSON.stringify(reglas)); } catch (e) {}
+    try { localStorage.setItem("habitec_reglas4", JSON.stringify(reglas)); } catch (e) {}
   });
 }
-$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas3"); } catch (e) {} pintarReglas(); };
+$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas4"); } catch (e) {} pintarReglas(); };
 pintarReglas();
 function cfgMateriales() {
   const r = {};
@@ -567,10 +574,16 @@ $("bMat").onclick = () => {
   if (!proyecto) { $("estadoMat").textContent = "Escribí el nombre del proyecto (sección 1)."; $("proyecto").focus(); return; }
   ocupado = true; refrescar();
   $("estadoMat").textContent = "Calculando…";
+  clearTimeout(vigiaMat);
+  vigiaMat = setTimeout(() => {               // tarda segundos: si pasa más de un minuto, algo no contestó
+    if (!ocupado) return;
+    ocupado = false; refrescar();
+    $("estadoMat").textContent = "No respondió. Recargá la página con Ctrl+F5 (o abrila en una ventana de incógnito) y probá de nuevo.";
+  }, 60000);
   worker.postMessage({ tipo: "materiales", dxf: dxf.datos.slice(0), proyecto, unidades: $("unidades").value, cfg: cfgMateriales() });
 };
 function mostrarMat(m) {
-  ocupado = false;
+  ocupado = false; clearTimeout(vigiaMat);
   $("descMat").innerHTML = ""; $("listaMat").innerHTML = "";
   if (!m.salida.ok) { $("estadoMat").textContent = "No se pudo calcular: " + m.salida.error; refrescar(); return; }
   setEstado("Listo.");
