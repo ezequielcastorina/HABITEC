@@ -53,6 +53,13 @@
   table.mats { width:100%; border-collapse:collapse; margin-top:8px; }
   table.mats td, table.mats th { padding:4px; text-align:left; font-size:13px; }
   table.mats th { color:var(--mut); font-weight:500; }
+  table.caras { width:100%; border-collapse:collapse; margin-top:4px; }
+  table.caras td, table.caras th { padding:4px; text-align:left; font-size:13px; vertical-align:middle; }
+  table.caras th { color:var(--mut); font-weight:500; }
+  table.caras td.lado { white-space:nowrap; } table.caras td.lado span { color:var(--mut); font-size:12px; display:block; }
+  table.lista { width:100%; border-collapse:collapse; margin-top:10px; }
+  table.lista td, table.lista th { padding:5px 6px; border-bottom:1px solid var(--lin); font-size:14px; text-align:left; }
+  table.lista td.n { text-align:right; font-weight:600; width:70px; }
   details summary { cursor:pointer; color:var(--mut); font-size:13px; margin-top:12px; }
 </style>
 </head>
@@ -88,16 +95,24 @@
       <div><label for="obs">Observaciones</label><input id="obs" type="text" autocomplete="off"></div>
       <div><label for="rev">Revisión</label><input id="rev" type="text" value="00" autocomplete="off"></div>
     </div>
-    <label>Cara exterior de los paneles de muro, cara por cara</label>
-    <div id="pieles" class="pieles"><span class="nota">Se completa al cargar el plano.</span></div>
-    <div class="botones" style="margin-top:6px">
-      <button id="bPielSmart" class="chico" type="button">Todas smart panel</button>
-      <button id="bPielOsb" class="chico" type="button">Todas OSB</button>
+    <label>Revestimientos cara por cara</label>
+    <div id="pieles"><span class="nota">Se completa al cargar el plano.</span></div>
+    <div class="fila" style="margin-top:4px">
+      <div><label for="todasExt">Exterior de todas las caras</label><select id="todasExt"></select></div>
+      <div><label for="todasInt">Interior de todas las caras</label><select id="todasInt"></select></div>
     </div>
-    <p class="nota">Esta opción sí cambia las hojas: en las caras con OSB desaparecen el smart panel y el machimbrado exterior.
-      El WPC y la chapa van sobre el smart panel (el smart hace de impermeabilización), así que una cara con WPC sigue en smart.
-      Al lado de cada cara se ve, como dato, el revestimiento exterior que tiene dibujado el plano (<code>REV_EXT_…</code>).
-      Lo demás de la carátula es informativo.</p>
+    <p class="nota">Se eligen acá y no hace falta dibujarlos en el DXF: valen para la lámina gráfica, las láminas de obra y
+      el cálculo de materiales. Todos los muros llevan smart panel; el WPC y la chapa van encima (el smart hace de
+      impermeabilización). Si el plano trae líneas <code>REV_EXT_…</code> o <code>REV_INT_…</code> con tramos, aparece la
+      opción «según el plano» para respetarlos. Lo demás de la carátula es informativo.</p>
+    <div class="fila">
+      <div><label for="cielo">Cielorraso (uno por módulo)</label>
+        <select id="cielo"><option value="sip">Sin cielorraso (SIP visto)</option><option value="placa">Durlock pegado</option>
+          <option value="omega">Durlock sobre omega</option><option value="p35">Durlock sobre perfil 35</option>
+          <option value="p70">Durlock sobre perfil 70</option></select></div>
+      <div></div>
+    </div>
+    <div id="tabsDur"></div>
     <label for="esquina">Esquina donde arranca el montaje</label>
     <select id="esquina" disabled><option value="NO">Se completa al cargar el plano</option></select>
     <p class="nota">Lados del módulo, mirando la planta del DXF: <strong>A</strong> es el lado de arriba y los demás siguen en
@@ -124,9 +139,9 @@
 
   <section id="secLamina">
     <h2>4 · Lámina gráfica: planta y vistas</h2>
-    <p class="nota" style="margin-top:0">Sale del mismo DXF. Los revestimientos se dibujan en el plano, con una línea por tramo
-      en las capas <code>REV_EXT_…</code> (sobre la cara exterior del muro) y <code>REV_INT_…</code> (sobre la cara interior,
-      también en tabiques). Sin línea, el exterior es smart panel y el interior, OSB visto. También se leen
+    <p class="nota" style="margin-top:0">Sale del mismo DXF. Los revestimientos de cada cara son los elegidos en la sección 2
+      (si se elige «según el plano», los tramos de las capas <code>REV_EXT_…</code> y <code>REV_INT_…</code>; las líneas
+      <code>REV_INT_…</code> sobre las caras de los tabiques se siguen leyendo del plano). También se leen
       <code>TABIQUE_DURLOCK</code>, <code>SANITARIOS</code>, <code>PISO</code> y <code>ELECTRICIDAD</code>.
       Todo viene en la plantilla de AutoCAD.</p>
     <div class="fila4">
@@ -167,6 +182,42 @@
     <iframe id="vistaObra" class="oculto" title="Vista previa de las láminas de obra"></iframe>
   </section>
 
+  <section id="secMat">
+    <h2>6 · Materiales de durlock</h2>
+    <p class="nota" style="margin-top:0">Placas, perfiles y tornillería de las caras interiores, el cielorraso y los tabiques
+      de durlock elegidos en la sección 2. Del DXF solo se toman las medidas, los vanos y la posición de los tabiques
+      (capa <code>TABIQUE_DURLOCK</code>). Sale en un PDF y un Excel aparte (no va en las hojas de taller); el Excel de
+      la sección 3 también trae la solapa «Materiales».</p>
+    <div class="fila4">
+      <div><label for="rg_desperdicio">Desperdicio (%)</label><input id="rg_desperdicio" type="number" step="1" min="0"></div>
+      <div><label for="rg_umbral_vano">Descontar vanos de más de (m²)</label><input id="rg_umbral_vano" type="number" step="0.1" min="0"></div>
+      <div><label for="rg_placa_muro">Placa de muros (mm)</label><select id="rg_placa_muro"><option>9.5</option><option>12.5</option><option>15</option></select></div>
+      <div><label for="rg_placa_cielorraso">Placa de cielorraso (mm)</label><select id="rg_placa_cielorraso"><option>9.5</option><option>12.5</option><option>15</option></select></div>
+    </div>
+    <details>
+      <summary>Reglas de cálculo (medidas comerciales, separaciones y tornillos)</summary>
+      <div class="fila4">
+        <div><label for="rg_placa_ancho">Placa: ancho (m)</label><input id="rg_placa_ancho" type="number" step="0.01" min="0.1"></div>
+        <div><label for="rg_placa_largo">Placa: largo (m)</label><input id="rg_placa_largo" type="number" step="0.01" min="0.1"></div>
+        <div><label for="rg_perfil_largo">Largo de perfiles (m)</label><input id="rg_perfil_largo" type="number" step="0.01" min="0.5"></div>
+        <div><label for="rg_sep_muro">Montantes/omegas cada (m)</label><input id="rg_sep_muro" type="number" step="0.01" min="0.1"></div>
+        <div><label for="rg_sep_cielorraso">Cielorraso: perfiles cada (m)</label><input id="rg_sep_cielorraso" type="number" step="0.01" min="0.1"></div>
+        <div><label for="rg_t2_m2">T2 por m² de placa</label><input id="rg_t2_m2" type="number" step="1" min="0"></div>
+        <div><label for="rg_t1_montante">T1 por montante</label><input id="rg_t1_montante" type="number" step="1" min="0"></div>
+        <div><label for="rg_fijacion_cada">Fijación al SIP cada (m)</label><input id="rg_fijacion_cada" type="number" step="0.05" min="0.1"></div>
+      </div>
+      <div class="fila">
+        <div><label for="rg_tornillo_fijacion">Tornillo de fijación de perfiles al SIP</label><input id="rg_tornillo_fijacion" type="text" autocomplete="off"></div>
+        <div><label for="rg_tornillo_t1">Tornillo perfil-perfil</label><input id="rg_tornillo_t1" type="text" autocomplete="off"></div>
+      </div>
+      <div class="botones" style="margin-top:8px"><button id="bReglasReset" class="chico" type="button">Volver a los valores de fábrica</button></div>
+    </details>
+    <div class="botones"><button id="bMat" class="principal" disabled>Calcular materiales</button></div>
+    <div id="estadoMat" class="nota"></div>
+    <div id="listaMat"></div>
+    <div id="descMat" class="botones"></div>
+  </section>
+
   <section id="secLog" class="oculto">
     <h2>Resultado</h2>
     <pre id="log"></pre>
@@ -190,7 +241,10 @@ for (const [id, items] of Object.entries(SUG)) {
 
 const $ = (id) => document.getElementById(id);
 const CAMPOS = ["proyecto", "unidades", "interior", "cielorraso", "exterior", "obs", "rev", "esquina", "parrillas"];
-let pieles = {};           // cara exterior por lado: {A: "smart" | "osb", ...}
+let caras = {};            // revestimiento por lado: {A: {ext: "smart" | "wpc" | "chapa" | "plano", int: "sip" | "p35" | …}, ...}
+let ladosPlano = [];       // lo que devuelve el programa al leer el plano
+let tabDur = [];           // tabiques de durlock del plano: [{codigo, largo, esp, alto}]
+let cfgTab = {};           // elección por tabique: {T01: {estructura, placas, tipo, alto}}
 let dxf = null;            // {nombre, datos: ArrayBuffer}
 let listo = false;
 let ocupado = false;
@@ -209,6 +263,7 @@ function refrescar() {
   $("bPlantilla").disabled = !hab;
   $("bLamina").disabled = !(hab && dxf);
   $("bObra").disabled = !(hab && dxf);
+  $("bMat").disabled = !(hab && dxf);
   $("motivo").textContent = ocupado ? "Trabajando…" : !listo ? "Los botones se habilitan cuando termina de cargar (ver el mensaje de abajo)."
     : !dxf ? "Falta elegir el plano: arrastrá el DXF a la zona 1 (o tocala). Recién ahí se habilita «Generar hojas»." : "";
 }
@@ -218,7 +273,7 @@ async function tomarArchivo(f) {
   if (!f) return;
   if (/\.dwg$/i.test(f.name)) { setEstado("Ese archivo es DWG. En AutoCAD usá SAVEAS y guardalo como «AutoCAD 2018 DXF».", true); return; }
   dxf = { nombre: f.name, datos: await f.arrayBuffer() };
-  pieles = {};                                       // plano nuevo: la cara exterior se vuelve a proponer
+  caras = {}; cfgTab = {};                           // plano nuevo: los revestimientos se vuelven a proponer
   $("zonaTxt").innerHTML = `<strong>${f.name.replace(/[<&]/g, "")}</strong> · ${(f.size / 1024).toFixed(0)} KB<br>Tocá para cambiarlo`;
   pedirEsquinas();
   refrescar();
@@ -227,25 +282,68 @@ function pedirEsquinas() {
   if (!dxf || !listo) return;
   worker.postMessage({ tipo: "esquinas", dxf: dxf.datos.slice(0), unidades: $("unidades").value });
   worker.postMessage({ tipo: "lados", dxf: dxf.datos.slice(0), unidades: $("unidades").value });
+  worker.postMessage({ tipo: "tabiques", dxf: dxf.datos.slice(0), unidades: $("unidades").value });
 }
 const MIRA = { norte: "arriba", este: "derecha", sur: "abajo", oeste: "izquierda" };
-function llenarPieles(lista) {
-  const cont = $("pieles");
-  if (!lista.length) { cont.innerHTML = '<span class="nota">No se pudo leer el contorno.</span>'; pieles = {}; return; }
-  const nuevo = {};
-  for (const l of lista) nuevo[l.letra] = l.letra in pieles ? pieles[l.letra] : "smart";
-  pieles = nuevo;
-  cont.innerHTML = lista.map((l) => {
-    const rev = l.rev_ext.length ? ` · en el plano: ${l.rev_ext.join(", ")} (${Math.round(l.cubre * 100)} %)` : "";
-    return `<div><label for="piel_${l.letra}">Lado ${l.letra} <span>(${MIRA[l.mira] || l.mira}, ${l.largo.toFixed(2).replace(".", ",")} m${rev})</span></label>
-      <select id="piel_${l.letra}" data-letra="${l.letra}"><option value="smart">Smart panel</option><option value="osb">OSB (sin smart panel)</option></select></div>`;
-  }).join("");
-  for (const l of lista) $("piel_" + l.letra).value = pieles[l.letra];
+const EXT_BASE = { smart: "Smart panel", wpc: "Smart panel + WPC", chapa: "Smart panel + chapa" };
+const INT_BASE = { sip: "OSB visto", placa: "Durlock pegado", omega: "Durlock sobre omega", p35: "Durlock sobre perfil 35",
+                   p70: "Durlock sobre perfil 70" };
+function opcionesCara(cara) {
+  // las de fábrica y las que se agreguen en la tabla de revestimientos (sección 4); cerámico y PVC, por ahora no
+  const base = cara === "EXT" ? EXT_BASE : INT_BASE, o = Object.assign({}, base);
+  for (const [k, m] of Object.entries(lam.materiales)) if (m.cara === cara && !(k in MAT_BASE)) o[k] = m.nombre;
+  return o;
 }
-$("pieles").addEventListener("change", (e) => { if (e.target.dataset.letra) pieles[e.target.dataset.letra] = e.target.value; });
-function todasPieles(v) { for (const k of Object.keys(pieles)) { pieles[k] = v; $("piel_" + k).value = v; } }
-$("bPielSmart").onclick = () => todasPieles("smart");
-$("bPielOsb").onclick = () => todasPieles("osb");
+const f2 = (x) => x.toFixed(2).replace(".", ",");
+function optsHtml(o, conPlano) {
+  return Object.entries(o).map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join("") +
+    (conPlano ? '<option value="plano">Según el plano (tramos)</option>' : "");
+}
+function llenarPieles(lista) {
+  if (lista) ladosPlano = lista;
+  lista = ladosPlano;
+  const cont = $("pieles");
+  if (!lista.length) { cont.innerHTML = '<span class="nota">No se pudo leer el contorno.</span>'; caras = {}; return; }
+  const oe = opcionesCara("EXT"), oi = opcionesCara("INT"), nuevo = {};
+  for (const l of lista) {
+    const prev = caras[l.letra] || {};
+    const ext = prev.ext || (l.ext_dxf && (l.ext_dxf === "plano" || l.ext_dxf in oe) ? l.ext_dxf : "smart");
+    const int_ = prev.int || (l.int_dxf && (l.int_dxf === "plano" || l.int_dxf in oi) ? l.int_dxf : "sip");
+    nuevo[l.letra] = { ext, int: int_ };
+  }
+  caras = nuevo;
+  cont.innerHTML = `<table class="caras"><thead><tr><th>Lado</th><th>Exterior</th><th>Interior</th></tr></thead><tbody>` +
+    lista.map((l) => `<tr><td class="lado"><strong>${l.letra}</strong><span>${MIRA[l.mira] || l.mira}, ${f2(l.largo)} m</span></td>
+      <td><select id="ext_${l.letra}" data-letra="${l.letra}" data-cara="ext" aria-label="Exterior del lado ${l.letra}">${optsHtml(oe, l.ext_dxf === "plano" || caras[l.letra].ext === "plano")}</select></td>
+      <td><select id="int_${l.letra}" data-letra="${l.letra}" data-cara="int" aria-label="Interior del lado ${l.letra}">${optsHtml(oi, l.int_dxf === "plano" || caras[l.letra].int === "plano")}</select></td></tr>`).join("") +
+    "</tbody></table>";
+  for (const l of lista) { $("ext_" + l.letra).value = caras[l.letra].ext; $("int_" + l.letra).value = caras[l.letra].int; }
+  $("todasExt").innerHTML = '<option value="">—</option>' + optsHtml(oe, false);
+  $("todasInt").innerHTML = '<option value="">—</option>' + optsHtml(oi, false);
+}
+$("pieles").addEventListener("change", (e) => { const d = e.target.dataset; if (d.letra) caras[d.letra][d.cara] = e.target.value; });
+function todas(cara, v) {
+  if (!v) return;
+  for (const k of Object.keys(caras)) { caras[k][cara] = v; $(cara + "_" + k).value = v; }
+}
+$("todasExt").addEventListener("change", (e) => { todas("ext", e.target.value); e.target.value = ""; });
+$("todasInt").addEventListener("change", (e) => { todas("int", e.target.value); e.target.value = ""; });
+function llenarTabiques(lista) {
+  tabDur = lista || [];
+  const cont = $("tabsDur");
+  if (!tabDur.length) { cont.innerHTML = ""; return; }
+  for (const t of tabDur) if (!cfgTab[t.codigo]) cfgTab[t.codigo] = { estructura: t.esp >= 0.09 ? "70" : "35", placas: 1, tipo: "estandar", alto: "" };
+  cont.innerHTML = `<label>Tabiques de durlock (capa <code>TABIQUE_DURLOCK</code>, mismo código que en obra in situ)</label>
+    <table class="caras"><thead><tr><th>Tabique</th><th>Estructura</th><th>Placas por cara</th><th>Placa</th><th>Alto (m)</th></tr></thead><tbody>` +
+    tabDur.map((t) => `<tr><td class="lado"><strong>${esc(t.codigo)}</strong><span>${f2(t.largo)} m · ${Math.round(t.esp * 1000)} mm</span></td>
+      <td><select data-tab="${esc(t.codigo)}" data-c="estructura" aria-label="Estructura"><option value="35">Perfil 35</option><option value="70">Perfil 70</option></select></td>
+      <td><select data-tab="${esc(t.codigo)}" data-c="placas" aria-label="Placas por cara"><option value="1">1</option><option value="2">2</option></select></td>
+      <td><select data-tab="${esc(t.codigo)}" data-c="tipo" aria-label="Tipo de placa"><option value="estandar">Estándar</option><option value="verde">Verde (humedad)</option><option value="ignifuga">Roja (fuego)</option></select></td>
+      <td><input type="number" step="0.01" min="0" data-tab="${esc(t.codigo)}" data-c="alto" placeholder="${f2(t.alto)} (auto)" aria-label="Alto"></td></tr>`).join("") +
+    "</tbody></table>";
+  cont.querySelectorAll("[data-tab]").forEach((el) => { el.value = cfgTab[el.dataset.tab][el.dataset.c]; });
+}
+$("tabsDur").addEventListener("input", (e) => { const d = e.target.dataset; if (d.tab) cfgTab[d.tab][d.c] = e.target.value; });
 function llenarEsquinas(lista) {
   const sel = $("esquina"), previo = sel.value;
   if (!lista.length) { sel.innerHTML = '<option value="NO">No se pudo leer el contorno</option>'; sel.disabled = true; return; }
@@ -299,6 +397,8 @@ worker.onmessage = (ev) => {
   else if (m.tipo === "listo") { listo = true; setEstado("Listo. Elegí el plano para empezar."); pedirEsquinas(); refrescar(); }
   else if (m.tipo === "esquinas") llenarEsquinas(m.lista);
   else if (m.tipo === "lados") llenarPieles(m.lista);
+  else if (m.tipo === "tabiques") llenarTabiques(m.lista);
+  else if (m.tipo === "materiales") mostrarMat(m);
   else if (m.tipo === "lamina") mostrarLamina(m);
   else if (m.tipo === "obra") mostrarObra(m);
   else if (m.tipo === "error") { ocupado = false; setEstado("Error: " + m.mensaje, true); refrescar(); }
@@ -395,11 +495,11 @@ function agregarMat(cara) {
   if (!k) return;
   if (lam.materiales[k]) { alert("Ya existe un revestimiento con ese nombre."); return; }
   lam.materiales[k] = { cara, nombre: nombre, espesor: 2, patron: cara === "EXT" ? "tablas" : "liso", paso: cara === "EXT" ? 15 : 0 };
-  guardarLam(); pintarMateriales();
+  guardarLam(); pintarMateriales(); llenarPieles();
 }
 $("bMatExt").onclick = () => agregarMat("EXT");
 $("bMatInt").onclick = () => agregarMat("INT");
-$("bMatReset").onclick = () => { lam.materiales = JSON.parse(JSON.stringify(MAT_BASE)); guardarLam(); pintarMateriales(); };
+$("bMatReset").onclick = () => { lam.materiales = JSON.parse(JSON.stringify(MAT_BASE)); guardarLam(); pintarMateriales(); llenarPieles(); };
 [["lamZi", "zi"], ["lamZs", "zs"], ["lamZe", "ze"], ["lamVistas", "vistas"]].forEach(([id, k]) => {
   $(id).value = lam[k];
   $(id).addEventListener("input", () => { lam[k] = $(id).type === "number" ? (+$(id).value || 0) : $(id).value; guardarLam(); });
@@ -413,7 +513,7 @@ function cfgLamina() {
                 paso: (+m.paso || 0) / 100 };
   }
   return { materiales: mats, zingueria_inferior: lam.zi / 100,
-           zingueria_superior: lam.zs / 100, zingueria_esquina: lam.ze / 100, vistas: lam.vistas };
+           zingueria_superior: lam.zs / 100, zingueria_esquina: lam.ze / 100, vistas: lam.vistas, caras };
 }
 $("bLamina").onclick = () => {
   if (!dxf || ocupado || !listo) return;
@@ -463,6 +563,66 @@ function mostrarObra(m) {
   refrescar();
 }
 
+// --- Materiales de durlock ---------------------------------------------------------------------
+const REGLAS_DEF = { desperdicio: 15, umbral_vano: 1, placa_muro: "12.5", placa_cielorraso: "9.5", placa_ancho: 1.2,
+  placa_largo: 2.4, perfil_largo: 2.6, sep_muro: 0.4, sep_cielorraso: 0.4, t2_m2: 15, t1_montante: 4, fijacion_cada: 0.6,
+  tornillo_fijacion: "Tornillo T2", tornillo_t1: "Tornillo T1 punta mecha (perfil-perfil)" };
+let reglas = Object.assign({}, REGLAS_DEF);
+try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas2") || "{}")); } catch (e) {}
+try { const c = localStorage.getItem("habitec_cielo"); if (c) $("cielo").value = c; } catch (e) {}
+$("cielo").addEventListener("change", () => { try { localStorage.setItem("habitec_cielo", $("cielo").value); } catch (e) {} });
+function pintarReglas() { for (const k of Object.keys(REGLAS_DEF)) $("rg_" + k).value = reglas[k]; }
+for (const k of Object.keys(REGLAS_DEF)) {
+  $("rg_" + k).addEventListener("input", () => {
+    const el = $("rg_" + k);
+    reglas[k] = el.type === "number" ? el.value : el.value;
+    try { localStorage.setItem("habitec_reglas2", JSON.stringify(reglas)); } catch (e) {}
+  });
+}
+$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas2"); } catch (e) {} pintarReglas(); };
+pintarReglas();
+function cfgMateriales() {
+  const r = {};
+  for (const [k, v] of Object.entries(reglas)) r[k] = typeof REGLAS_DEF[k] === "string" && isNaN(+REGLAS_DEF[k]) ? String(v) : (v === "" ? null : +v);
+  const tabs = {};
+  for (const [k, t] of Object.entries(cfgTab)) tabs[k] = { estructura: t.estructura, placas: +t.placas, tipo: t.tipo, alto: t.alto === "" ? null : +t.alto };
+  return Object.assign(cfgLamina(), { cielorraso: $("cielo").value, tabiques: tabs, reglas: r });
+}
+function hayDurlock() {
+  return $("cielo").value !== "sip" || tabDur.length > 0 || Object.values(caras).some((c) => c.int !== "sip");
+}
+$("bMat").onclick = () => {
+  if (!dxf || ocupado || !listo) return;
+  const proyecto = $("proyecto").value.trim();
+  if (!proyecto) { $("estadoMat").textContent = "Escribí el nombre del proyecto (sección 1)."; $("proyecto").focus(); return; }
+  ocupado = true; refrescar();
+  $("estadoMat").textContent = "Calculando…";
+  worker.postMessage({ tipo: "materiales", dxf: dxf.datos.slice(0), proyecto, unidades: $("unidades").value, cfg: cfgMateriales() });
+};
+function mostrarMat(m) {
+  ocupado = false;
+  $("descMat").innerHTML = ""; $("listaMat").innerHTML = "";
+  if (!m.salida.ok) { $("estadoMat").textContent = "No se pudo calcular: " + m.salida.error; refrescar(); return; }
+  setEstado("Listo.");
+  const s = m.salida;
+  $("estadoMat").textContent = s.avisos.length ? "Avisos: " + s.avisos.join(" ") : "";
+  const det = s.detalle.map((d) => `<tr><td>${esc(d.elemento)}</td><td>${esc(d.sistema)}</td><td class="n">${f2(d.neta)} m²</td><td>${esc(d.vanos)}</td></tr>`).join("");
+  $("listaMat").innerHTML = `<table class="lista"><thead><tr><th>Cantidad</th><th>Material</th></tr></thead><tbody>` +
+    s.lista.map(([c, n]) => `<tr><td class="n">${c}</td><td>${esc(n)}</td></tr>`).join("") + "</tbody></table>" +
+    (det ? `<details><summary>Detalle por cara</summary><table class="lista"><thead><tr><th>Elemento</th><th>Sistema</th><th>Placa neta</th><th>Vanos descontados</th></tr></thead><tbody>${det}</tbody></table></details>` : "");
+  const base = ($("proyecto").value.trim() || "modulo").replace(/[^\w\-]+/g, "_");
+  const b = (t, fn, cls) => { const x = document.createElement("button"); x.textContent = t; if (cls) x.className = cls; x.onclick = fn; $("descMat").append(x); };
+  b("Bajar PDF", () => descargar(base + "_materiales_durlock.pdf", m.pdf, "application/pdf"), "principal");
+  b("Bajar Excel", () => descargar(base + "_materiales_durlock.xlsx", m.xlsx, TIPOS.xlsx));
+  b("Copiar lista", () => {
+    const txt = s.lista.map(([c, n]) => `${c}\t${n}`).join("\n");
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
+      () => { $("estadoMat").textContent = "Lista copiada: pegala en la planilla (Cantidad | Material)."; },
+      () => { $("estadoMat").textContent = "No se pudo copiar; usá el Excel."; });
+  });
+  refrescar();
+}
+
 function correr(soloValidar) {
   if (!dxf || ocupado || !listo) return;
   const proyecto = $("proyecto").value.trim();
@@ -471,8 +631,8 @@ function correr(soloValidar) {
   const caratula = { interior: $("interior").value.trim(), cielorraso: $("cielorraso").value.trim(),
                      exterior: $("exterior").value.trim(), observaciones: $("obs").value.trim(),
                      revision: $("rev").value.trim() || "00", piel_exterior: "smart",
-                     piel_lados: Object.entries(pieles).map(([k, v]) => `${k}=${v}`).join(","),
                      esquina: $("esquina").value, parrillas: $("parrillas").value };
+  if (hayDurlock()) caratula.materiales = cfgMateriales();
   const copia = dxf.datos.slice(0);
   worker.postMessage({ tipo: "generar", dxf: copia, proyecto, unidades: $("unidades").value, caratula, soloValidar }, [copia]);
 }

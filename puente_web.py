@@ -115,3 +115,39 @@ def obra(dxf_bytes, proyecto: str, unidades: str, cfg_json: str) -> str:
     except Exception as e:                                   # noqa: BLE001
         return json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"})
     return json.dumps({"ok": True, "ruta": str(ruta), "avisos": avisos, "hojas": len(figs)})
+
+
+def tabiques(dxf_bytes, unidades: str = "auto") -> str:
+    """Tabiques de durlock (capa TABIQUE_DURLOCK) con el código de las láminas de obra: para la web."""
+    from sip.lector_dxf import leer_plano
+    from sip.lamina import CONFIG_BASE
+    from sip.obra import Obra
+    BASE.mkdir(parents=True, exist_ok=True)
+    dxf = BASE / "plano_tabiques.dxf"
+    dxf.write_bytes(_bytes(dxf_bytes))
+    try:
+        ob = Obra(leer_plano(dxf, "x", unidades or "auto"), dict(CONFIG_BASE))
+        return json.dumps([{"codigo": t["codigo"], "largo": round(t["largo"], 3), "esp": round(t["esp"], 3),
+                            "alto": round(ob.z_interior(tuple(t["geom"].centroid.coords[0])), 2)}
+                           for t in ob.tabs if t["tipo"] == "DURLOCK"])
+    except Exception:                                        # noqa: BLE001
+        return "[]"
+
+
+def materiales(dxf_bytes, proyecto: str, unidades: str, cfg_json: str) -> str:
+    """Materiales de durlock: lista (para mostrar), PDF y Excel en /tmp/trabajo."""
+    import datetime
+    from sip.lector_dxf import leer_plano
+    from sip.materiales import calcular_materiales, pdf_materiales, xlsx_materiales
+    BASE.mkdir(parents=True, exist_ok=True)
+    dxf = BASE / "plano_materiales.dxf"
+    dxf.write_bytes(_bytes(dxf_bytes))
+    try:
+        res = calcular_materiales(leer_plano(dxf, proyecto, unidades or "auto"), json.loads(cfg_json or "{}"))
+        pdf, xlsx = BASE / "materiales_durlock.pdf", BASE / "materiales_durlock.xlsx"
+        pdf_materiales(res, pdf, datetime.date.today().strftime("%d/%m/%Y"))
+        xlsx_materiales(res, xlsx)
+    except Exception as e:                                   # noqa: BLE001
+        return json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"})
+    return json.dumps({"ok": True, "pdf": str(pdf), "xlsx": str(xlsx), "lista": res["lista"],
+                       "detalle": res["detalle"], "avisos": res["avisos"]})
