@@ -98,6 +98,8 @@ return async (m) => {
       const ruta = puente.plantilla();
       const buf = leerArchivo(ruta);
       postMessage({ tipo: "archivo", nombre: ruta.split("/").pop(), buf }, [buf]);
+    } else {
+      postMessage({ tipo: "error", mensaje: `El motor no conoce el pedido «${m.tipo}»: recargá la página con Ctrl+F5.` });
     }
   } catch (e) {
     postMessage({ tipo: "error", mensaje: String((e && e.message) || e) });

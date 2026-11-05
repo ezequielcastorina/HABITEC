@@ -198,8 +198,8 @@ Del DXF solo se toman las medidas, los vanos y la posición de los tabiques. Tod
 * Placa 1,20 × 2,40 (12,5 mm en muros y tabiques; 9,5 mm en cielorraso). Perfiles de 2,60 m: solera 35 / montante 34 o
   solera 70 / montante 69, y omega.
 * Montantes u omegas cada 40 cm (más el del extremo), una barra por pieza; soleras abajo y arriba, por metro lineal.
-  Cielorraso: omegas (o montantes con soleras perimetrales) cada 30 cm cruzando la luz corta, por metro lineal;
-  la omega va directo al SIP con T2.
+  Cielorraso: omegas (o montantes con soleras perimetrales) cada 40 cm cruzando la luz corta, por metro lineal;
+  la omega va directo al SIP con T2, un tornillo cada 30 cm.
 * Perfil de ajuste: del lado interior de cada vano de las caras con durlock, en todo su perímetro (sin el lado de
   abajo si el vano llega al piso), por metro lineal.
 * Alturas libres bajo el techo (2,31 junto al muro alto y 2,22 junto al de la caída; laterales y tabiques en trapecio);
@@ -207,6 +207,6 @@ Del DXF solo se toman las medidas, los vanos y la posición de los tabiques. Tod
 * Vanos: se descuentan solo los de más de 1 m² (placa y montantes cortados; se suman dos jambas y dintel/antepecho);
   los más chicos se toman como lleno.
 * Tornillos: T2 placa-perfil, 15 por m² de placa y por capa; T1 solo perfil-perfil, 4 por montante; T2 también para
-  fijar los perfiles al SIP (y las soleras de los tabiques a piso y techo), uno cada 60 cm.
+  fijar los perfiles al SIP (y las soleras de los tabiques a piso y techo), uno cada 60 cm en muros y cada 30 cm en el cielorraso.
 * Desperdicio 15 % sobre todo, redondeado hacia arriba. Durlock pegado: solo placas (el adhesivo no se computa).
 * Simplificación: la estructura de los muros no descuenta la altura que ocupa un cielorraso sobre perfil.
