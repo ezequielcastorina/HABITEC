@@ -33,7 +33,7 @@ Para uso técnico (opcional) sigue existiendo la línea de comandos: `python gen
 
 La primera hoja del PDF es la carátula: marca HABITEC, proyecto, fecha de emisión y revisión, dos axonometrías esquemáticas (muros y techo),
 resumen de paneles y los revestimientos que completa quien emite (interior, cielorraso, exterior, observaciones). Lo que queda vacío figura como
-«a definir». Es informativo: no cambia el despiece. En la web son campos; en la consola:
+«a definir». Es informativo: no cambia el despiece. En la web, interior, cielorraso y exterior salen solos de lo elegido cara por cara (solo se escriben las observaciones y la revisión); en la consola:
 `--interior "…" --cielorraso "…" --exterior "…" --obs "…" --rev 00`. El logo está embebido en `sip/logo_datos.py`.
 
 **Revestimientos cara por cara** (sección 2 de la web): por cada lado se elige el exterior (smart panel, smart + WPC,

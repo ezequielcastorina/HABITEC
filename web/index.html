@@ -83,19 +83,8 @@
   </section>
 
   <section>
-    <h2>2 · Carátula: revestimientos y terminaciones</h2>
-    <p class="nota" style="margin-top:0">Elegí una opción o escribí la tuya. Lo que quede vacío figura como «a definir».</p>
-    <label for="interior">Revestimiento interior</label>
-    <input id="interior" type="text" list="l_int" autocomplete="off">
-    <label for="cielorraso">Cielorraso</label>
-    <input id="cielorraso" type="text" list="l_cie" autocomplete="off">
-    <label for="exterior">Revestimiento exterior</label>
-    <input id="exterior" type="text" list="l_ext" autocomplete="off">
-    <div class="fila3">
-      <div><label for="obs">Observaciones</label><input id="obs" type="text" autocomplete="off"></div>
-      <div><label for="rev">Revisión</label><input id="rev" type="text" value="00" autocomplete="off"></div>
-    </div>
-    <label>Revestimientos cara por cara</label>
+    <h2>2 · Revestimientos y carátula</h2>
+    <label style="margin-top:0">Revestimientos cara por cara (exterior e interior de cada lado)</label>
     <div id="pieles"><span class="nota">Se completa al cargar el plano.</span></div>
     <div class="fila" style="margin-top:4px">
       <div><label for="todasExt">Exterior de todas las caras</label><select id="todasExt"></select></div>
@@ -104,7 +93,8 @@
     <p class="nota">Se eligen acá y no hace falta dibujarlos en el DXF: valen para la lámina gráfica, las láminas de obra y
       el cálculo de materiales. Todos los muros llevan smart panel; el WPC y la chapa van encima (el smart hace de
       impermeabilización). Si el plano trae líneas <code>REV_EXT_…</code> o <code>REV_INT_…</code> con tramos, aparece la
-      opción «según el plano» para respetarlos. Lo demás de la carátula es informativo.</p>
+      opción «según el plano» para respetarlos. La carátula los resume sola (por ejemplo «Durlock sobre perfil 35 en A, B ·
+      OSB visto en C, D»).</p>
     <div class="fila">
       <div><label for="cielo">Cielorraso (uno por módulo)</label>
         <select id="cielo"><option value="sip">Sin cielorraso (SIP visto)</option><option value="placa">Durlock pegado</option>
@@ -113,6 +103,10 @@
       <div></div>
     </div>
     <div id="tabsDur"></div>
+    <div class="fila3">
+      <div><label for="obs">Observaciones de la carátula</label><input id="obs" type="text" autocomplete="off"></div>
+      <div><label for="rev">Revisión</label><input id="rev" type="text" value="00" autocomplete="off"></div>
+    </div>
     <label for="esquina">Esquina donde arranca el montaje</label>
     <select id="esquina" disabled><option value="NO">Se completa al cargar el plano</option></select>
     <p class="nota">Lados del módulo, mirando la planta del DXF: <strong>A</strong> es el lado de arriba y los demás siguen en
@@ -123,7 +117,6 @@
     <label for="parrillas">Parrillas de piso en el camión</label>
     <select id="parrillas"><option value="no">No (las coloca otro equipo)</option><option value="si">Sí, van en el camión</option></select>
     <p class="nota">Definen la secuencia de carga del camión (lámina 3 del PDF y solapa «Carga camión» del Excel): primero las parrillas, después las dos caras de esa esquina (por ejemplo A-F), luego los paneles lado por lado en sentido horario (A, B, C…), los tabiques y al final el techo.</p>
-    <datalist id="l_int"></datalist><datalist id="l_cie"></datalist><datalist id="l_ext"></datalist>
   </section>
 
   <section>
@@ -228,19 +221,8 @@
 
 <script>
 "use strict";
-const SUG = {
-  l_int: ["Placa de yeso (Durlock) sobre perfil de 35 mm", "Placa de yeso (Durlock) sobre perfil de 70 mm",
-          "Placa de yeso (Durlock) sobre omega", "Placa de yeso pegada directo", "SIP visto hacia el interior",
-          "Combinado según instalaciones (detallar)"],
-  l_ext: ["Smart panel", "WPC", "Chapa acanalada", "Otro (detallar)"],
-};
-SUG.l_cie = SUG.l_int.concat(["Sin cielorraso (SIP visto)"]);
-for (const [id, items] of Object.entries(SUG)) {
-  document.getElementById(id).innerHTML = items.map((t) => `<option value="${t}">`).join("");
-}
-
 const $ = (id) => document.getElementById(id);
-const CAMPOS = ["proyecto", "unidades", "interior", "cielorraso", "exterior", "obs", "rev", "esquina", "parrillas"];
+const CAMPOS = ["proyecto", "unidades", "obs", "rev", "esquina", "parrillas"];
 let caras = {};            // revestimiento por lado: {A: {ext: "smart" | "wpc" | "chapa" | "plano", int: "sip" | "p35" | …}, ...}
 let ladosPlano = [];       // lo que devuelve el programa al leer el plano
 let tabDur = [];           // tabiques de durlock del plano: [{codigo, largo, esp, alto}]
@@ -623,13 +605,25 @@ function mostrarMat(m) {
   refrescar();
 }
 
+// Texto de la carátula a partir de lo elegido cara por cara: «X» si todas iguales, si no «X en A, B · Y en C».
+function resumenCaras(cara) {
+  const o = opcionesCara(cara.toUpperCase()), grupos = {};
+  for (const [letra, c] of Object.entries(caras)) {
+    const n = c[cara] === "plano" ? "según el plano" : (o[c[cara]] || c[cara]);
+    (grupos[n] = grupos[n] || []).push(letra);
+  }
+  const g = Object.entries(grupos);
+  if (!g.length) return "";
+  return g.length === 1 ? g[0][0] : g.map(([n, ls]) => `${n} en ${ls.join(", ")}`).join(" · ");
+}
+
 function correr(soloValidar) {
   if (!dxf || ocupado || !listo) return;
   const proyecto = $("proyecto").value.trim();
   if (!proyecto) { setEstado("Escribí el nombre del proyecto.", true); $("proyecto").focus(); return; }
   ocupado = true; refrescar();
-  const caratula = { interior: $("interior").value.trim(), cielorraso: $("cielorraso").value.trim(),
-                     exterior: $("exterior").value.trim(), observaciones: $("obs").value.trim(),
+  const caratula = { interior: resumenCaras("int"), cielorraso: $("cielo").selectedOptions[0].textContent,
+                     exterior: resumenCaras("ext"), observaciones: $("obs").value.trim(),
                      revision: $("rev").value.trim() || "00", piel_exterior: "smart",
                      esquina: $("esquina").value, parrillas: $("parrillas").value };
   if (hayDurlock()) caratula.materiales = cfgMateriales();
