@@ -380,7 +380,7 @@ def test_materiales_durlock():
     r = calcular_materiales(pl, cfg)
     nombres = [m for _, m in r["lista"]]
     assert nombres[0].startswith("Placa de yeso 12,5") and any(m.startswith("Placa de yeso 9,5") for m in nombres)
-    assert {"Solera 35 mm × 2,60 m", "Montante 34 mm × 2,60 m", "Omega × 2,60 m", "Tornillo T2"} <= set(nombres)
+    assert {"Solera 35 mm × 2,60 m", "Montante 34 mm × 2,60 m", "Omega × 2,60 m", "Tornillo T2", "Perfil de ajuste × 2,60 m"} <= set(nombres)
     t1 = dict((m, c) for c, m in r["lista"])
     assert t1["Tornillo T1 punta mecha (perfil-perfil)"] < t1["Tornillo T2"]
     # el desperdicio sube todo; con umbral alto no se descuenta ningún vano

@@ -565,10 +565,10 @@ function mostrarObra(m) {
 
 // --- Materiales de durlock ---------------------------------------------------------------------
 const REGLAS_DEF = { desperdicio: 15, umbral_vano: 1, placa_muro: "12.5", placa_cielorraso: "9.5", placa_ancho: 1.2,
-  placa_largo: 2.4, perfil_largo: 2.6, sep_muro: 0.4, sep_cielorraso: 0.4, t2_m2: 15, t1_montante: 4, fijacion_cada: 0.6,
+  placa_largo: 2.4, perfil_largo: 2.6, sep_muro: 0.4, sep_cielorraso: 0.3, t2_m2: 15, t1_montante: 4, fijacion_cada: 0.6,
   tornillo_fijacion: "Tornillo T2", tornillo_t1: "Tornillo T1 punta mecha (perfil-perfil)" };
 let reglas = Object.assign({}, REGLAS_DEF);
-try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas2") || "{}")); } catch (e) {}
+try { Object.assign(reglas, JSON.parse(localStorage.getItem("habitec_reglas3") || "{}")); } catch (e) {}
 try { const c = localStorage.getItem("habitec_cielo"); if (c) $("cielo").value = c; } catch (e) {}
 $("cielo").addEventListener("change", () => { try { localStorage.setItem("habitec_cielo", $("cielo").value); } catch (e) {} });
 function pintarReglas() { for (const k of Object.keys(REGLAS_DEF)) $("rg_" + k).value = reglas[k]; }
@@ -576,10 +576,10 @@ for (const k of Object.keys(REGLAS_DEF)) {
   $("rg_" + k).addEventListener("input", () => {
     const el = $("rg_" + k);
     reglas[k] = el.type === "number" ? el.value : el.value;
-    try { localStorage.setItem("habitec_reglas2", JSON.stringify(reglas)); } catch (e) {}
+    try { localStorage.setItem("habitec_reglas3", JSON.stringify(reglas)); } catch (e) {}
   });
 }
-$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas2"); } catch (e) {} pintarReglas(); };
+$("bReglasReset").onclick = () => { reglas = Object.assign({}, REGLAS_DEF); try { localStorage.removeItem("habitec_reglas3"); } catch (e) {} pintarReglas(); };
 pintarReglas();
 function cfgMateriales() {
   const r = {};
