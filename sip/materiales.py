@@ -29,7 +29,8 @@ Criterio de cálculo (todo editable en `reglas`):
 * Tornillos: T2 placa-perfil por m² de placa y por capa; T1 solo perfil-perfil (por cada pieza de montante);
   T2 también en la fijación de perfiles al SIP (soleras, montantes y omegas apoyados en el SIP) uno cada `fijacion_cada`
   (en el cielorraso, cada `fijacion_cielorraso`).
-* Al final se suma el desperdicio a todo y se redondea hacia arriba, por unidad.
+* Al final se suma el desperdicio (uno para placas y tornillos y otro para perfiles) y se redondea hacia
+  arriba, por unidad.
 """
 from __future__ import annotations
 
@@ -56,7 +57,8 @@ REGLAS_BASE = {
     "tornillo_t2": "Tornillo T2",
     "tornillo_t1": "Tornillo T1 punta mecha (perfil-perfil)",
     "tornillo_fijacion": "Tornillo T2",
-    "desperdicio": 15,              # %
+    "desperdicio_placas": 10,       # % sobre las placas y los tornillos (siempre se pierden)
+    "desperdicio_perfiles": 5,      # % sobre los perfiles
     "umbral_vano": 1.0,             # m²: se descuentan los vanos más grandes que esto
 }
 
@@ -106,10 +108,12 @@ class Computo:
         self.sumar(self.placa(esp_mm, tipo), m2 / (R["placa_ancho"] * R["placa_largo"]))
 
     def lista(self):
-        f = 1 + float(self.R["desperdicio"]) / 100
+        fp = 1 + float(self.R["desperdicio_placas"]) / 100
+        fr = 1 + float(self.R["desperdicio_perfiles"]) / 100
         orden = ("Placa", "Solera", "Montante", "Omega", "Perfil de ajuste")
         clave = lambda k: next((j for j, o in enumerate(orden) if k.startswith(o)), len(orden))
-        return [(math.ceil(v * f - 1e-6), k) for k, v in sorted(self.bruto.items(), key=lambda kv: clave(kv[0]))]
+        return [(math.ceil(v * (fp if k.startswith(("Placa", "Tornillo")) else fr) - 1e-6), k)
+                for k, v in sorted(self.bruto.items(), key=lambda kv: clave(kv[0]))]
 
 
 # --------------------------------------------------------------------------------------------
@@ -200,7 +204,12 @@ def _cota_vano(v):
 def calcular_materiales(plano, cfg: dict | None = None) -> dict:
     from .obra import Obra
     cfg = dict(cfg or {})
-    R = {**REGLAS_BASE, **{k: v for k, v in (cfg.get("reglas") or {}).items() if v not in (None, "")}}
+    rg = dict(cfg.get("reglas") or {})
+    if rg.get("desperdicio") not in (None, ""):          # un solo valor (versión anterior): vale para los dos
+        rg.setdefault("desperdicio_placas", rg["desperdicio"])
+        rg.setdefault("desperdicio_perfiles", rg["desperdicio"])
+    rg.pop("desperdicio", None)
+    R = {**REGLAS_BASE, **{k: v for k, v in rg.items() if v not in (None, "")}}
     for k, v in REGLAS_BASE.items():
         if isinstance(v, (int, float)):
             R[k] = float(R[k])
@@ -337,7 +346,8 @@ def calcular_materiales(plano, cfg: dict | None = None) -> dict:
     if not cp.detalle:
         cp.avisos.append("No hay ninguna cara con durlock: elegí el revestimiento interior de las caras o el cielorraso.")
     cp.notas = [
-        f"Desperdicio {R['desperdicio']:g} % sobre todo, redondeado por unidad.",
+        f"Desperdicio {R['desperdicio_placas']:g} % en placas y tornillos y {R['desperdicio_perfiles']:g} % en perfiles, "
+        "redondeado por unidad.",
         f"Se descuentan los vanos de más de {_n(R['umbral_vano'])} m²; los más chicos se toman como lleno.",
         f"Montantes y omegas cada {_n(R['sep_muro'])} m (cielorraso cada {_n(R['sep_cielorraso'])} m); perfiles de {_n(R['perfil_largo'])} m.",
         f"{R['tornillo_t2']}: {R['t2_m2']:g} por m² de placa · {R['tornillo_t1']}: {R['t1_montante']:g} por montante · "

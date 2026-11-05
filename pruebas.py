@@ -384,7 +384,7 @@ def test_materiales_durlock():
     t1 = dict((m, c) for c, m in r["lista"])
     assert t1["Tornillo T1 punta mecha (perfil-perfil)"] < t1["Tornillo T2"]
     # el desperdicio sube todo; con umbral alto no se descuenta ningún vano
-    r2 = calcular_materiales(pl, {**cfg, "reglas": {"desperdicio": 30, "umbral_vano": 99}})
+    r2 = calcular_materiales(pl, {**cfg, "reglas": {"desperdicio_placas": 30, "desperdicio_perfiles": 30, "umbral_vano": 99}})
     assert all(c2 >= c1 for (c1, _), (c2, _) in zip(r["lista"], r2["lista"]))
     assert all(d["vanos"] == "—" for d in r2["detalle"])
     # la elección de la web pisa al DXF en la lámina
@@ -398,7 +398,7 @@ def test_materiales_durlock():
     pt = correr(modificar(base(), "mat.dxf", agregar)).plano
     rt = calcular_materiales(pt, {"tabiques": {"T01": {"estructura": "70", "placas": 2, "tipo": "verde", "alto": 2.4}}})
     nt = dict((m, c) for c, m in rt["lista"])
-    # 1,51 × 2,40 × 2 caras × 2 placas = 14,5 m² → 5,03 placas → +15 % → 6
+    # 1,51 × 2,40 × 2 caras × 2 placas = 14,5 m² → 5,03 placas → +10 % → 6
     assert nt["Placa de yeso 12,5 mm verde (resistente a la humedad) 1,20 × 2,40 m"] == 6
     assert "Montante 69 mm × 2,60 m" in nt and "Solera 70 mm × 2,60 m" in nt
     with tempfile.TemporaryDirectory() as tmp:
