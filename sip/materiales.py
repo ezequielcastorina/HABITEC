@@ -471,21 +471,12 @@ def hoja_xlsx(wb, res: dict, titulo="Materiales"):
         c.fill = PatternFill("solid", fgColor="333333")
     for c, m in res["lista"]:
         ws.append([c, m])
-    ws.append([])
-    ws.append(["Elemento", "Sistema", "Largo (m)", "Alto medio (m)", "Bruta (m²)", "Vanos descontados", "Neta (m²)"])
-    for c in ws[ws.max_row]:
-        c.font = Font(bold=True)
-    for d in res["detalle"]:
-        ws.append([d["elemento"], d["sistema"], round(d["largo"], 3) if d["largo"] else None,
-                   round(d["alto"], 3) if d["alto"] else None, round(d["bruta"], 2), d["vanos"], round(d["neta"], 2)])
-    ws.append([])
-    for t in res["notas"] + [f"Aviso: {a}" for a in res["avisos"]]:
-        ws.append([t])
+    if res["avisos"]:                                  # solo la lista de compra; el detalle queda en el PDF
+        ws.append([])
+        for t in res["avisos"]:
+            ws.append([f"Aviso: {t}"])
     ws.column_dimensions["A"].width = 14
     ws.column_dimensions["B"].width = 58
-    for col in "CDEG":
-        ws.column_dimensions[col].width = 13
-    ws.column_dimensions["F"].width = 26
     for row in ws.iter_rows(min_row=3, max_col=1):
         for c in row:
             c.alignment = Alignment(horizontal="left")

@@ -192,7 +192,7 @@ izquierda y A-D arriba a la izquierda. El plano de nomenclatura (lámina 2) mues
 
 Sección 6 de la web: placas, perfiles y tornillería de las caras interiores, el cielorraso y los tabiques de durlock
 elegidos en la sección 2. Sale una lista de compra (Cantidad | Material, por unidad) en pantalla, en un **PDF aparte**
-(no va en las hojas de taller) y en un Excel; el Excel de la sección 3 también trae la solapa «Materiales».
+(no va en las hojas de taller) y en un Excel; el Excel de la documentación para taller (sección 3) también trae la solapa «Materiales».
 Del DXF solo se toman las medidas, los vanos y la posición de los tabiques. Todas las reglas se editan en la web:
 
 * Placa 1,20 × 2,40 (12,5 mm en muros y tabiques; 9,5 mm en cielorraso). Perfiles de 2,60 m: solera 35 / montante 34 o
