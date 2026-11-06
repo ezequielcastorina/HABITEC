@@ -590,10 +590,8 @@ function mostrarMat(m) {
   setEstado("Listo.");
   const s = m.salida;
   $("estadoMat").textContent = s.avisos.length ? "Avisos: " + s.avisos.join(" ") : "";
-  const det = s.detalle.map((d) => `<tr><td>${esc(d.elemento)}</td><td>${esc(d.sistema)}</td><td class="n">${f2(d.neta)} m²</td><td>${esc(d.vanos)}</td></tr>`).join("");
   $("listaMat").innerHTML = `<table class="lista"><thead><tr><th>Cantidad</th><th>Material</th></tr></thead><tbody>` +
-    s.lista.map(([c, n]) => `<tr><td class="n">${c}</td><td>${esc(n)}</td></tr>`).join("") + "</tbody></table>" +
-    (det ? `<details><summary>Detalle por cara</summary><table class="lista"><thead><tr><th>Elemento</th><th>Sistema</th><th>Placa neta</th><th>Vanos descontados</th></tr></thead><tbody>${det}</tbody></table></details>` : "");
+    s.lista.map(([c, n]) => `<tr><td class="n">${c}</td><td>${esc(n)}</td></tr>`).join("") + "</tbody></table>";
   const base = ($("proyecto").value.trim() || "modulo").replace(/[^\w\-]+/g, "_");
   const b = (t, fn, cls) => { const x = document.createElement("button"); x.textContent = t; if (cls) x.className = cls; x.onclick = fn; $("descMat").append(x); };
   b("Bajar PDF", () => descargar(base + "_materiales_durlock.pdf", m.pdf, "application/pdf"), "principal");
