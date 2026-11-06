@@ -149,6 +149,7 @@ class VanoEnPanel:
     # panel sino el vecino (se guarda su código). Vacío si no corresponde.
     junta_izq: str = ""
     junta_der: str = ""
+    tirantes_jamba_taller: bool = True   # las jambas traen su tirante desde taller (False: rebaje libre)
 
 
 @dataclass
@@ -163,6 +164,7 @@ class JambaJunta:
     v0: float                    # vano de corte (para el huelgo)
     v1: float
     tiene_antepecho: bool
+    tirante: bool = True         # False: el panel solo deja el rebaje de 55 mm (el tirante se pone en obra)
 
 
 @dataclass

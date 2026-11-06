@@ -32,7 +32,7 @@ def planilla_xlsx(d: Despiece, ruta: Path, car=None, fecha: str = "", materiales
         ws["I2"] = "Revisión"
         ws["J2"] = car.revision
     cab = ["Código", "Tipo", "Lado", "N°", "Ancho (mm)", "Alto/Largo (mm)", "Espesor (mm)", "Ajuste",
-           "Revestimiento", "Cara", "Sentido", "Vanos", "Rebaje perimetral", "Tirantes y tapas", "Alertas"]
+           "Revestimiento", "Cara", "Sentido", "Vanos", "Rebaje perimetral", "Tirantes y tapas" if C.TIRANTES_EN_TALLER else "Bordes", "Alertas"]
     fila0 = 4
     for j, h in enumerate(cab, start=1):
         c = ws.cell(row=fila0, column=j, value=h)
@@ -119,11 +119,17 @@ def _bordes_txt(p) -> str:
         if clase == "tirante":
             partes.append(f"{nombres[b]}: trae tirante 50x70 (junta con {dato})")
         elif clase == "recibe":
-            partes.append(f"{nombres[b]}: rebaje libre (recibe de {dato})")
+            partes.append(f"{nombres[b]}: rebaje libre (recibe de {dato})" if C.TIRANTES_EN_TALLER
+                          else f"{nombres[b]}: rebaje 30 mm libre (junta con {dato})")
+        elif clase == "esquina":
+            partes.append(f"{nombres[b]}: rebaje 30 mm libre (esquina {p.lado}-{dato})")
+        elif clase == "libre":
+            partes.append(f"{nombres[b]}: rebaje 30 mm libre (se une en obra)")
         else:
             partes.append(f"{nombres[b]}: tapa 25x70 (esquina {p.lado}-{dato})")
     for jj in p.jambas_junta:
-        partes.append(f"{nombres[jj.borde]}: trae tirante 50x70 de la jamba de {jj.vano_id} (vano de {jj.con_panel})")
+        partes.append(f"{nombres[jj.borde]}: trae tirante 50x70 de la jamba de {jj.vano_id} (vano de {jj.con_panel})"
+                      if jj.tirante else f"{nombres[jj.borde]}: rebaje 55 mm de la jamba de {jj.vano_id} (vano de {jj.con_panel})")
     return "; ".join(partes)
 
 
@@ -134,5 +140,6 @@ def _tirantes_techo(t) -> str:
     if lleva:
         partes.append("trae tirante 50x70 hacia " + ", ".join(lleva))
     if recibe:
-        partes.append("recibe tirante de " + ", ".join(recibe))
+        partes.append(("recibe tirante de " if C.TIRANTES_EN_TALLER else "rebaje 30 mm libre en las juntas con ")
+                      + ", ".join(recibe))
     return "; ".join(partes)

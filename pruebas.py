@@ -31,6 +31,23 @@ def correr(ruta):
     return calcular(leer_plano(ruta, "Prueba"))
 
 
+def con_tirantes(f):
+    """Corre la prueba con el criterio anterior (tirantes y tapas desde taller): sigue disponible en config."""
+    import functools
+    from sip import config as C
+
+    @functools.wraps(f)
+    def envuelta():
+        antes = C.TIRANTES_EN_TALLER
+        C.TIRANTES_EN_TALLER = True
+        try:
+            f()
+        finally:
+            C.TIRANTES_EN_TALLER = antes
+    return envuelta
+
+
+@con_tirantes
 def test_ejemplo():
     d = correr(base())
     assert len(d.muros) == 14 and len(d.techos) == 8
@@ -145,6 +162,7 @@ def test_techo_trabado():
     assert sum("trabarse" in a for a in d.alertas) == 3, d.alertas
 
 
+@con_tirantes
 def test_tirantes_y_tapas():
     d = correr(base())
     m = {p.codigo: p for p in d.muros}
@@ -230,6 +248,7 @@ def test_cara_exterior_osb():
     assert (out2 / "caratula.pdf").exists()
 
 
+@con_tirantes
 def test_modulo_con_escalon():
     """Contorno de 6 lados (rectángulo con un escalón) y tabiques interiores."""
     from pathlib import Path
@@ -420,6 +439,30 @@ def test_ventana_con_antepecho_cero_llega_al_piso():
     en_panel = [vp for m in d.muros for vp in m.vanos if vp.tipo == "V"]
     assert en_panel and not any(vp.tiene_antepecho or vp.tirante_antepecho_taller for vp in en_panel)
     assert all(abs(vp.v0) < 1e-9 for vp in en_panel)                 # sin huelgo contra el piso
+
+
+def test_sin_tirantes_de_taller():
+    """Criterio actual: ningún tirante ni tapa desde taller; los paneles solo traen sus rebajes."""
+    d = correr(base())
+    m = {p.codigo: p for p in d.muros}
+    assert m["A-01"].bordes == {"izq": ("esquina", "D"), "der": ("recibe", "A-02")}
+    assert m["A-02"].bordes == {"izq": ("recibe", "A-01"), "der": ("recibe", "A-03")}
+    assert m["A-03"].bordes["der"] == ("esquina", "B")
+    assert not any(cl in ("tirante", "tapa") for p in d.muros for cl, _ in p.bordes.values())
+    for p in d.muros:
+        for vp in p.vanos:
+            assert not (vp.tirante_dintel_taller or vp.tirante_antepecho_taller or vp.tirantes_jamba_taller)
+        assert all(not jj.tirante for jj in p.jambas_junta)
+    assert all(set(t.tirantes.values()) <= {"recibe"} for t in d.techos)
+    # La hoja y la planilla no hablan de tirantes
+    import tempfile
+    from sip.hoja_taller import hoja_muro
+    from sip.salida import _bordes_txt, _tirantes_techo
+    txt = " ".join(_bordes_txt(p) for p in d.muros) + " ".join(_tirantes_techo(t) for t in d.techos)
+    assert "tirante" not in txt and "tapa" not in txt and "rebaje 30 mm libre" in txt
+    fig = hoja_muro(d, m["C-01"], "01/01/2026")
+    textos = " ".join(t.get_text() for t in fig.axes[0].texts)
+    assert "tirante" not in textos.lower() and "tapa 25" not in textos and "rebaje 55 mm" in textos
 
 
 def test_plantilla_ascii():
