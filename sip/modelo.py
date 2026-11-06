@@ -69,6 +69,12 @@ class VanoLeido:
     antepecho: float = 0.0       # altura del antepecho (m); 0 si llega al piso
     avisos: list[str] = field(default_factory=list)
 
+    @property
+    def llega_al_piso(self) -> bool:
+        """Puerta, puerta ventana o corrediza, o cualquier vano con antepecho 0: sin antepecho ni rebaje abajo."""
+        from . import config as C
+        return self.tipo in C.TIPOS_HASTA_PISO or (self.antepecho or 0.0) <= C.TOL
+
 
 @dataclass
 class Boca:

@@ -407,6 +407,21 @@ def test_materiales_durlock():
         assert (Path(tmp) / "m.pdf").stat().st_size > 5000
 
 
+def test_ventana_con_antepecho_cero_llega_al_piso():
+    """Una ventana (TIPO V) con ANTEPECHO 0 se trata como las que llegan al piso: sin antepecho ni su rebaje."""
+    def ante_cero(doc, msp):
+        for i in msp.query('INSERT[name=="VANO_BLOQUE"]'):
+            if i.get_attrib_text("TIPO") == "V":
+                i.get_attrib("ANTEPECHO").dxf.text = "0"
+    pl = leer_plano(modificar(base(), "ante0.dxf", ante_cero), "Prueba")
+    vs = [v for v in pl.vanos if v.tipo == "V"]
+    assert vs and all(v.llega_al_piso and v.antepecho == 0 for v in vs)
+    d = calcular(pl)
+    en_panel = [vp for m in d.muros for vp in m.vanos if vp.tipo == "V"]
+    assert en_panel and not any(vp.tiene_antepecho or vp.tirante_antepecho_taller for vp in en_panel)
+    assert all(abs(vp.v0) < 1e-9 for vp in en_panel)                 # sin huelgo contra el piso
+
+
 def test_plantilla_ascii():
     """La plantilla de AutoCAD va solo con caracteres comunes: con tildes o ñ hay AutoCAD que no la abre."""
     ruta = base()

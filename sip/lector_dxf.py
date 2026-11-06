@@ -275,7 +275,7 @@ def leer_plano(ruta: str | Path, proyecto: str, unidades: str = "auto") -> Plano
             elif ante is not None:
                 v.antepecho = ante * f
             else:
-                v.avisos.append("Falta ANTEPECHO; se toma 0.")
+                v.avisos.append("Falta ANTEPECHO; se toma 0 (llega al piso).")
             if v.dintel is not None:
                 v.alto = v.dintel - v.antepecho
                 if v.alto <= C.TOL:

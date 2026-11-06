@@ -145,7 +145,7 @@ def axo_muros(ax, d: Despiece, caja, f=None):
             if v.alto is None:
                 continue
             rr = v.rect
-            z0 = 0.0 if v.tipo in C.TIPOS_HASTA_PISO else v.antepecho
+            z0 = 0.0 if v.llega_al_piso else v.antepecho
             z1 = v.antepecho + v.alto
             vx0, vy0, vx1, vy1 = rr.x0 - m.x0, rr.y0 - m.y0, rr.x1 - m.x0, rr.y1 - m.y0
             lado = p.dir
