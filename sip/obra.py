@@ -544,7 +544,7 @@ class Obra:
             a, b = max(0.0, a), min(c["L"], b)
             if b - a < 0.02:
                 continue
-            if v.tipo in C.TIPOS_HASTA_PISO:
+            if v.llega_al_piso:
                 z0, z1 = 0.0, (v.alto or 2.0)
             else:
                 z0 = v.antepecho

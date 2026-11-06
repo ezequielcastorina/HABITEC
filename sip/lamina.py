@@ -624,7 +624,7 @@ def pintar_cara(ax, mo: Modelo, i, F0, zb):
         if it["muro"] != i:
             continue
         v = it["v"]
-        if v.tipo in C.TIPOS_HASTA_PISO:
+        if v.llega_al_piso:
             z0 = zi
             z1 = v.alto or 2.0
         else:
@@ -687,7 +687,7 @@ def titulos_vistas(mo, vistas):
     def puntaje(item):
         dl, caras = item
         its = [it for it in mo.vanos if it["muro"] in caras]
-        return (any(it["v"].tipo in C.TIPOS_HASTA_PISO for it in its), sum(it["b"] - it["a"] for it in its))
+        return (any(it["v"].llega_al_piso for it in its), sum(it["b"] - it["a"] for it in its))
     if not vistas:
         return {}
     frente = max(vistas, key=puntaje)[0]

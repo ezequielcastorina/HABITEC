@@ -195,7 +195,7 @@ def _vanos_cara(cp, lista, umbral):
 
 
 def _cota_vano(v):
-    z0 = 0.0 if v.tipo in C.TIPOS_HASTA_PISO else float(v.antepecho or 0.0)
+    z0 = 0.0 if v.llega_al_piso else float(v.antepecho or 0.0)
     z1 = v.dintel if v.dintel is not None else (z0 + (v.alto or 2.05))
     return z0, float(z1)
 

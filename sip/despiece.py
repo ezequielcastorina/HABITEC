@@ -220,7 +220,7 @@ def _resolver_vano(v: VanoLeido, muros: list[PanelMuro], alertas: list[str], dur
     s0, s1 = _coord_a_lo_largo(direc, v.rect)
     s0 -= h
     s1 += h                                     # vano de corte, a lo largo del muro
-    hasta_piso = v.tipo in C.TIPOS_HASTA_PISO
+    hasta_piso = v.llega_al_piso
     v0 = 0.0 if hasta_piso else v.antepecho - h
     v1 = v.antepecho + v.alto + h
     ancho_total = s1 - s0
