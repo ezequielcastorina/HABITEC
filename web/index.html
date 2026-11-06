@@ -3,42 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <link rel="icon" href="logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Inter+Tight:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&display=swap">
 <title>HABITEC · Documentación SIP</title>
 <style>
-  /* Estética de estudioyme.com: papel, tinta, líneas finas, Inter Tight + Newsreader en cursiva, botones píldora */
+  /* Estética de estudioyme.com: tinta sobre blanco, líneas finas, Inter Tight, botones píldora.
+     El fondo es siempre blanco, también con el sistema en modo oscuro. */
   :root {
-    --paper:#f2efe8; --paper-2:#e8e4da; --campo:#faf8f4; --ink:#161614; --muted:#6e6a62; --line:rgba(22,22,20,.14);
-    --line-2:rgba(22,22,20,.28); --accent:#4c9985; --mal:#b3261e; --sobre-ink:#f2efe8;
-    --sans:"Inter Tight", "Helvetica Neue", Arial, sans-serif; --serif:"Newsreader", Georgia, serif;
+    color-scheme:light;
+    --paper:#ffffff; --paper-2:#f2efe8; --campo:#ffffff; --ink:#161614; --muted:#6e6a62; --line:rgba(22,22,20,.14);
+    --line-2:rgba(22,22,20,.28); --accent:#4c9985; --mal:#b3261e; --sobre-ink:#ffffff;
+    --sans:"Inter Tight", "Helvetica Neue", Arial, sans-serif;
     --gut:clamp(16px, 3.2vw, 48px); --ease:cubic-bezier(.2, .7, .1, 1);
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --paper:#161614; --paper-2:#22211e; --campo:#1c1b19; --ink:#f2efe8; --muted:#b9b4a9; --line:rgba(242,239,232,.16);
-      --line-2:rgba(242,239,232,.32); --accent:#6fbfa9; --mal:#ff8a80; --sobre-ink:#161614;
-    }
-  }
-  :root[data-theme="dark"] {
-    --paper:#161614; --paper-2:#22211e; --campo:#1c1b19; --ink:#f2efe8; --muted:#b9b4a9; --line:rgba(242,239,232,.16);
-    --line-2:rgba(242,239,232,.32); --accent:#6fbfa9; --mal:#ff8a80; --sobre-ink:#161614;
-  }
   * { box-sizing:border-box; }
-  html { scroll-behavior:smooth; scroll-padding-top:110px; }
+  html { scroll-behavior:smooth; scroll-padding-top:150px; }
   body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 var(--sans); -webkit-font-smoothing:antialiased; }
-  em { font-family:var(--serif); font-style:italic; font-weight:400; letter-spacing:0; }
   code { font:12.5px ui-monospace, "Cascadia Mono", Consolas, monospace; background:var(--paper-2); border-radius:4px; padding:1px 5px; }
 
   /* Encabezado: translúcido, marca a la izquierda, índice numerado a la derecha */
   header { position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--paper) 86%, transparent);
            backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
   .tope { max-width:1040px; margin:0 auto; padding:12px var(--gut) 0; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-  .marca-bloque { display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit; }
-  .logo { height:38px; width:auto; background:#fff; border-radius:6px; padding:2px 5px; }
-  .marca { font-weight:600; letter-spacing:.14em; font-size:15px; }
+  .marca-bloque { display:flex; align-items:center; gap:16px; text-decoration:none; color:inherit; }
+  .logo { height:76px; width:auto; }
+  .marca { font-family:var(--sans); text-transform:uppercase; font-weight:600; letter-spacing:.14em; font-size:30px; line-height:1; }
   nav.indice { display:flex; gap:clamp(12px, 1.8vw, 26px); font-size:14px; overflow-x:auto; scrollbar-width:none; }
   nav.indice::-webkit-scrollbar { display:none; }
   nav.indice a { flex:none; text-decoration:none; color:var(--muted); padding:4px 0; white-space:nowrap; transition:color .2s; }
@@ -47,14 +39,14 @@
   #estado { max-width:1040px; margin:0 auto; padding:6px var(--gut) 10px; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
             color:var(--muted); min-height:1.3em; display:flex; align-items:center; gap:8px; }
   #estado::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none; }
+  #estado:empty { display:none; }
   #estado.mal { color:var(--mal); }
   #estado.mal::before { background:var(--mal); }
 
   /* Portada breve */
   .portada { max-width:1040px; margin:0 auto; padding:clamp(40px, 6vw, 80px) var(--gut) clamp(20px, 3vw, 36px); }
   .kicker, .num { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:400; }
-  .portada h1 { margin:14px 0 14px; font-size:clamp(38px, 5.4vw, 76px); line-height:.98; font-weight:500; letter-spacing:-.02em; }
-  .portada p { margin:0; max-width:620px; color:var(--muted); font-size:16px; }
+    .portada p { margin:12px 0 0; max-width:620px; color:var(--muted); font-size:16px; }
 
   /* Secciones: sin tarjetas, separadas por una línea fina */
   main { max-width:1040px; margin:0 auto; padding:0 var(--gut) 80px; }
@@ -144,12 +136,11 @@
 </header>
 <div class="portada">
   <span class="kicker">Paneles SIP · Documentación de módulos</span>
-  <h1>Del plano <em>a la obra.</em></h1>
   <p>Cargá el DXF del módulo, definí qué lleva cada cara y sacá la documentación para taller, las láminas y los materiales.</p>
 </div>
 <main>
   <section id="secPlano">
-    <h2><span class="num">01</span>Plano <em>del módulo</em></h2>
+    <h2><span class="num">01</span>Plano del módulo</h2>
     <p class="bajada">El DXF del módulo: de acá sale toda la documentación.</p>
     <div id="zona" tabindex="0">
       <div id="zonaTxt"><strong>Arrastrá el archivo DXF acá</strong> o tocá para elegirlo</div>
@@ -166,7 +157,7 @@
   </section>
 
   <section id="secRev">
-    <h2><span class="num">02</span>Revestimientos <em>y carátula</em></h2>
+    <h2><span class="num">02</span>Revestimientos y carátula</h2>
     <p class="bajada">Qué lleva cada cara, el cielorraso y los tabiques. Vale para todas las salidas.</p>
     <label style="margin-top:0">Revestimientos cara por cara (exterior e interior de cada lado)</label>
     <div id="pieles"><span class="nota">Se completa al cargar el plano.</span></div>
@@ -200,7 +191,7 @@
   </section>
 
   <section id="secTaller">
-    <h2><span class="num">03</span>Documentación <em>para taller</em></h2>
+    <h2><span class="num">03</span>Documentación para taller</h2>
     <p class="bajada">Carátula, plano de nomenclatura, secuencia de carga, una hoja por panel y la planilla Excel.</p>
     <div class="botones">
       <button id="bGenerar" class="principal" disabled>Generar documentación para taller</button>
@@ -217,7 +208,7 @@
   </section>
 
   <section id="secLamina">
-    <h2><span class="num">04</span>Lámina gráfica: <em>planta y vistas</em></h2>
+    <h2><span class="num">04</span>Lámina gráfica: planta y vistas</h2>
     <p class="bajada">Sale del mismo DXF. Los revestimientos de cada cara son los elegidos en la sección 2
       (si se elige «según el plano», los tramos de las capas <code>REV_EXT_…</code> y <code>REV_INT_…</code>; las líneas
       <code>REV_INT_…</code> sobre las caras de los tabiques se siguen leyendo del plano). También se leen
@@ -248,7 +239,7 @@
   </section>
 
   <section id="secObra">
-    <h2><span class="num">05</span>Obra in situ <em>(posterior al montaje)</em></h2>
+    <h2><span class="num">05</span>Obra in situ (posterior al montaje)</h2>
     <p class="bajada">Láminas A3 apaisadas, en blanco y negro y a escala, para el equipo de obra:
       planta de revestimientos interiores y tabiques, planta de instalaciones (electricidad y ejes sanitarios) y una vista
       interior de cada muro y de cada cara de tabique, todo acotado. Usa los revestimientos de la sección 4 y, además, las
@@ -262,7 +253,7 @@
   </section>
 
   <section id="secMat">
-    <h2><span class="num">06</span>Materiales <em>de durlock</em></h2>
+    <h2><span class="num">06</span>Materiales de durlock</h2>
     <p class="bajada">Placas, perfiles y tornillería de las caras interiores, el cielorraso y los tabiques
       de durlock elegidos en la sección 2. Del DXF solo se toman las medidas, los vanos y la posición de los tabiques
       (capa <code>TABIQUE_DURLOCK</code>). Sale en un PDF y un Excel aparte (no va en las hojas de taller); el Excel de
@@ -451,7 +442,7 @@ const tipoDe = (n) => TIPOS[n.split(".").pop().toLowerCase()];
 worker.onmessage = (ev) => {
   const m = ev.data;
   if (m.tipo === "estado") setEstado(m.texto);
-  else if (m.tipo === "listo") { listo = true; setEstado("Listo. Elegí el plano para empezar."); pedirEsquinas(); refrescar(); }
+  else if (m.tipo === "listo") { listo = true; setEstado(""); pedirEsquinas(); refrescar(); }
   else if (m.tipo === "esquinas") llenarEsquinas(m.lista);
   else if (m.tipo === "lados") llenarPieles(m.lista);
   else if (m.tipo === "tabiques") llenarTabiques(m.lista);
@@ -463,7 +454,7 @@ worker.onmessage = (ev) => {
     for (const id of ["estadoMat", "estadoLam", "estadoObra"]) if (/…$/.test($(id).textContent)) $(id).textContent = "Error: " + m.mensaje;
     refrescar();
   }
-  else if (m.tipo === "archivo") { ocupado = false; setEstado("Listo."); descargar(m.nombre, m.buf, tipoDe(m.nombre)); refrescar(); }
+  else if (m.tipo === "archivo") { ocupado = false; setEstado(""); descargar(m.nombre, m.buf, tipoDe(m.nombre)); refrescar(); }
   else if (m.tipo === "resultado") mostrar(m);
 };
 
@@ -588,7 +579,7 @@ function mostrarLamina(m) {
   ocupado = false;
   $("descLam").innerHTML = "";
   if (!m.salida.ok) { $("estadoLam").textContent = "No se pudo dibujar: " + m.salida.error; refrescar(); return; }
-  setEstado("Listo.");
+  setEstado("");
   $("estadoLam").textContent = "Lámina generada." + (m.salida.avisos.length ? " Avisos: " + m.salida.avisos.join(" ") : "");
   const url = URL.createObjectURL(new Blob([m.buf], { type: "application/pdf" }));
   urls.push(url);
@@ -612,7 +603,7 @@ function mostrarObra(m) {
   ocupado = false;
   $("descObra").innerHTML = "";
   if (!m.salida.ok) { $("estadoObra").textContent = "No se pudo dibujar: " + m.salida.error; refrescar(); return; }
-  setEstado("Listo.");
+  setEstado("");
   $("estadoObra").textContent = `Láminas generadas (${m.salida.hojas} hojas).` + (m.salida.avisos.length ? " Avisos: " + m.salida.avisos.join(" ") : "");
   const url = URL.createObjectURL(new Blob([m.buf], { type: "application/pdf" }));
   urls.push(url);
@@ -671,7 +662,7 @@ function mostrarMat(m) {
   ocupado = false; clearTimeout(vigiaMat);
   $("descMat").innerHTML = ""; $("listaMat").innerHTML = "";
   if (!m.salida.ok) { $("estadoMat").textContent = "No se pudo calcular: " + m.salida.error; refrescar(); return; }
-  setEstado("Listo.");
+  setEstado("");
   const s = m.salida;
   $("estadoMat").textContent = s.avisos.length ? "Avisos: " + s.avisos.join(" ") : "";
   $("listaMat").innerHTML = `<table class="lista"><thead><tr><th>Cantidad</th><th>Material</th></tr></thead><tbody>` +
