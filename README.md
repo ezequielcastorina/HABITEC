@@ -49,8 +49,10 @@ obra y no figuran en las hojas. (En consola sigue existiendo `--piel-lados "B=os
 
 Las hojas muestran el panel desde el interior, así que no dibujan las tablas del smart panel (que está en la cara exterior).
 Cada elemento se distingue por su tipo de línea o trama, no por el color: contorno del panel, línea gruesa continua · rebaje perimetral de 30 mm, trazo largo ·
-rebaje de 55 mm alrededor del vano, trazo y punto · vano de corte, contorno grueso (fino donde llega al borde del panel) · tirante de junta 50 × 70, relleno gris claro (25 mm adentro y 25 mm que sobresalen) ·
-rebaje de 30 mm (sin EPS, recibe el tirante), rayado a 45° · tapa de esquina 25 × 70, trama cruzada · el machimbrado va como texto ("smart panel macho / hembra") sobre el borde.
+rebaje de 55 mm alrededor del vano, trazo y punto · vano de corte, contorno grueso (fino donde llega al borde del panel) ·
+rebaje libre (sin EPS, donde en obra va el tirante), rayado a 45°, con su medida y con qué se une («rebaje 30 mm · junta con A-02»,
+«rebaje 30 mm · esquina A-D», «rebaje 55 mm · dintel / jamba / antepecho») · el machimbrado va como texto ("smart panel macho / hembra") sobre el borde.
+Los paneles salen de taller **sin ningún tirante ni tapa** (ver Reglas).
 En planta y en las axos: tono medio para el smart panel, tono más oscuro para las piezas de ajuste y blanco para la cara interior o el OSB.
 
 ## Salidas
@@ -95,17 +97,16 @@ Para insertar un bloque, poner como capa actual `VANO` (o `PANEL_REV`) y usar `I
 ## Reglas que aplica
 
 * Lados del contorno: se nombran **A, B, C…** en sentido horario empezando por el lado horizontal más alto. En un rectángulo: **A** arriba, **B** derecha, **C** abajo, **D** izquierda. Con escalones hay más letras (A a F en un módulo en L).
-* Tabiques interiores: los paneles de la capa `PANEL` que no apoyan sobre el contorno se numeran `I-01`, `I-02`… (los alineados y contiguos forman una tira; en sus juntas rige la misma regla del tirante). Alto 2,44 m, sin smart panel; sus extremos quedan con rebaje libre para resolverse en obra.
+* Tabiques interiores: los paneles de la capa `PANEL` que no apoyan sobre el contorno se numeran `I-01`, `I-02`… (los alineados y contiguos forman una tira; sus juntas, como las de los muros). Alto 2,44 m, sin smart panel; sus extremos quedan con rebaje libre para resolverse en obra.
 * Numeración: los muros que miran hacia arriba o abajo, de izquierda a derecha; los que miran a los costados, de arriba hacia abajo.
 * Muro del lado de la caída: 2,22 m de alto; el resto, 2,44 m. Los laterales (perpendiculares a la caída) toman las esquinas: llegan hasta el vértice exterior y, en una esquina entrante, avanzan un espesor más; los demás muros se retraen un espesor en las esquinas salientes.
 * Panel de muro estándar 1,22 × 0,09 m; se admite una pieza de ajuste por lado.
 * Panel de techo: máximo 1,22 × 2,44 m, con el lado largo en el sentido corto del módulo y las juntas trabadas (las juntas de dos filas contiguas no coinciden). Numeración T-01, T-02… de izquierda a derecha y de arriba hacia abajo. El software verifica que cubran toda su zona, sin huecos ni superposiciones. La zona es el contorno menos el espesor de los muros en los lados sin caída; del lado de la caída puede sobresalir hasta 50 cm (se refila en obra).
 * Vano de corte = abertura + 5 mm por lado (sin huelgo contra el piso en `PV`, `C` y `P`, y en cualquier vano con `ANTEPECHO` 0, que se toma como que llega al piso: sin antepecho ni su rebaje).
+* **Ningún tirante ni tapa viene puesto desde taller** (ni de junta entre paneles coplanares, ni de esquina, ni en los vanos): cada panel trae solo sus rebajes y los tirantes se colocan en obra. (`TIRANTES_EN_TALLER` en `sip/config.py`; en `True` vuelve el criterio anterior: el panel de menor número trae el tirante de junta, tapas de 25 × 70 en las esquinas y tirantes de vano en taller.)
 * Rebaje de 30 mm en el perímetro de cada panel: aloja la mitad (25 mm) del tirante de junta de 50 × 70 mm, con 5 mm de huelgo. En el techo, el lado de la caída no lleva rebaje.
-* Tirante de junta de 50 × 70 mm (25 mm en cada panel) en cada junta entre dos paneles (muros y techo): lo trae clavado el panel de menor número, sobre el borde que da al vecino; el otro deja el rebaje libre para recibirlo.
-* Tapa de 25 × 70 mm (medio tirante) en los muros de esquina: la traen los dos paneles que se encuentran en cada esquina, el que queda visible y el que queda tapado, sobre el borde que da a la esquina.
-* Rebaje de 55 mm alrededor de cada vano: aloja el tirante de 50 × 70 mm con 5 mm de huelgo. Vano dentro de un panel: tirantes de los cuatro lados en taller. Vano que toma dos paneles: en taller solo las jambas; dintel y antepecho se completan in situ.
-* No se controla la distancia de un vano al borde del panel (queda a criterio del proyectista). Si la abertura arranca justo en la junta entre dos paneles, el tirante de 50 × 70 de esa jamba lo trae el panel vecino, encastrado desde taller, y el panel del vano no lleva tirante de ese lado.
+* Rebaje de 55 mm alrededor de cada vano (dintel, jambas y antepecho; sin antepecho si el vano llega al piso): aloja el tirante de 50 × 70 mm con 5 mm de huelgo.
+* No se controla la distancia de un vano al borde del panel (queda a criterio del proyectista). Si la abertura arranca justo en la junta entre dos paneles, el rebaje de 55 mm de esa jamba lo hace el panel vecino, sobre el borde de la junta.
 * El módulo (caja que envuelve al contorno) debería ser múltiplo de 61 cm; si no lo es, el informe lo muestra como aviso, sin contarlo como alerta.
 
 ## Pendientes para confirmar

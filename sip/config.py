@@ -19,6 +19,10 @@ REBAJE_VANO = 0.055         # rebaje alrededor de cada vano (aloja tirante 5x7)
 TIRANTE_VANO = (0.05, 0.07)  # sección del tirante de vano (ancho x espesor)
 TIRANTE_CHICO = (0.025, 0.07)  # medio tirante (25 x 70 mm): la tapa de esquina; el rebaje de 30 mm le deja 5 mm de huelgo
 TIRANTE_JUNTA = (0.05, 0.07)   # tirante de junta (50 x 70 mm): 25 mm en cada panel
+# Los paneles salen de taller SIN tirantes ni tapas (ni de junta, ni de esquina, ni en los vanos): solo con sus
+# rebajes (30 mm en el perímetro y 55 mm alrededor de los vanos). Los tirantes se colocan en obra.
+# En True vuelve el criterio anterior (el panel de menor número trae el tirante, tapas en las esquinas, etc.).
+TIRANTES_EN_TALLER = False
 HUELGO_VANO = 0.005         # huelgo por lado que se suma a la abertura
 DIST_MIN_BORDE = 0.20       # distancia mínima vano - junta/borde de panel
 MACHIMBRE_PROF = 0.005      # profundidad aprox. del rebaje de machimbrado

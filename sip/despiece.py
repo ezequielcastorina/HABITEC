@@ -261,11 +261,12 @@ def _resolver_vano(v: VanoLeido, muros: list[PanelMuro], alertas: list[str], dur
         vp = VanoEnPanel(
             vano_id=v.id, tipo=v.tipo, u0=cu0, u1=cu1, v0=v0, v1=v1,
             completo=completo, jamba_izq=jamba_izq, jamba_der=jamba_der,
-            tirante_dintel_taller=completo,
-            tirante_antepecho_taller=completo and not hasta_piso,
+            tirante_dintel_taller=completo and C.TIRANTES_EN_TALLER,
+            tirante_antepecho_taller=completo and not hasta_piso and C.TIRANTES_EN_TALLER,
             tiene_antepecho=not hasta_piso,
             ancho_total=ancho_total, alto_total=alto_total,
-            junta_izq=junta_izq, junta_der=junta_der)
+            junta_izq=junta_izq, junta_der=junta_der,
+            tirantes_jamba_taller=C.TIRANTES_EN_TALLER)
         p.vanos.append(vp)
 
         for borde, vecino in (("izq", junta_izq), ("der", junta_der)):
@@ -283,7 +284,7 @@ def _resolver_vano(v: VanoLeido, muros: list[PanelMuro], alertas: list[str], dur
             q.jambas_junta.append(JambaJunta(
                 vano_id=v.id, borde=borde_q, con_panel=p.codigo,
                 v_ini=rv0 + (gap if not hasta_piso else 0.0), v_fin=rv1 - gap,
-                v0=v0, v1=v1, tiene_antepecho=not hasta_piso))
+                v0=v0, v1=v1, tiene_antepecho=not hasta_piso, tirante=C.TIRANTES_EN_TALLER))
 
         # Altura
         if v1 > p.alto + C.TOL:
@@ -384,6 +385,8 @@ def _despiece_techo(plano: Plano, caida: str | None, alertas: list[str]) -> list
                 t.tirantes[lado] = "recibe"
             else:
                 t.tirantes[lado] = "mixto"
+            if not C.TIRANTES_EN_TALLER:
+                t.tirantes[lado] = "recibe"           # sin tirantes de taller: todas las juntas, rebaje libre
 
     # --- Juntas trabadas: las juntas verticales de filas contiguas no deben coincidir ----------
     filas: dict[int, list[Rect]] = {}
@@ -515,7 +518,7 @@ def _bordes_muros(muros: list[PanelMuro], por_letra: dict[str, Lado]) -> None:
         hacia_sig = "der" if lado.dir in ("A", "B") else "izq"
         hacia_ant = "izq" if hacia_sig == "der" else "der"
         for a, b in zip(ps, ps[1:]):
-            a.bordes[hacia_sig] = ("tirante", b.codigo)
+            a.bordes[hacia_sig] = ("tirante" if C.TIRANTES_EN_TALLER else "recibe", b.codigo)
             b.bordes[hacia_ant] = ("recibe", a.codigo)
         # En la vista interior la lectura de izquierda a derecha sigue el sentido horario:
         # a la izquierda está el lado anterior y a la derecha el siguiente.
@@ -523,8 +526,9 @@ def _bordes_muros(muros: list[PanelMuro], por_letra: dict[str, Lado]) -> None:
         primero, ultimo = ps[0], ps[-1]
         borde_primero = hacia_ant      # el primer panel está en el extremo opuesto al "siguiente"
         borde_ultimo = hacia_sig
-        primero.bordes[borde_primero] = ("tapa", izq_esq if borde_primero == "izq" else der_esq)
-        ultimo.bordes[borde_ultimo] = ("tapa", izq_esq if borde_ultimo == "izq" else der_esq)
+        esq = "tapa" if C.TIRANTES_EN_TALLER else "esquina"      # "esquina": rebaje libre, sin tapa
+        primero.bordes[borde_primero] = (esq, izq_esq if borde_primero == "izq" else der_esq)
+        ultimo.bordes[borde_ultimo] = (esq, izq_esq if borde_ultimo == "izq" else der_esq)
 
     ti = sorted((p for p in muros if p.lado == "I"), key=lambda p: p.numero)
     for p in ti:
@@ -540,5 +544,5 @@ def _bordes_muros(muros: list[PanelMuro], por_letra: dict[str, Lado]) -> None:
         if a.dir == "B":
             contiguos = abs(la[0] - lb[1]) <= C.TOL
         if mismo_eje and contiguos:
-            a.bordes["der"] = ("tirante", b.codigo)
+            a.bordes["der"] = ("tirante" if C.TIRANTES_EN_TALLER else "recibe", b.codigo)
             b.bordes["izq"] = ("recibe", a.codigo)

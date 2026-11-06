@@ -281,7 +281,7 @@ def _vecinos(d: Despiece, p: PanelMuro) -> tuple[str, str]:
         clase, dato = p.bordes.get(borde, ("", ""))
         if clase in ("tirante", "recibe"):
             return dato
-        if clase == "tapa":
+        if clase in ("tapa", "esquina"):
             return f"esquina {p.lado}-{dato}"
         return "extremo libre"
     return texto("izq"), texto("der")
@@ -320,7 +320,13 @@ def hoja_muro(d: Despiece, p: PanelMuro, fecha: str, pagina: str = ""):
             largo_t, corto_t, color = f"tirante 50×70 clavado · junta con {dato}", f"tirante 50×70 · junta {dato}", NEGRO
         elif clase == "recibe":
             L.rect(u0, 0, u0 + tw, p.alto, fc="white", ec=NEGRO, hatch=HATCH_REBAJE, lw=0.8, zorder=4)
-            largo_t, corto_t, color = "rebaje 30 mm", "rebaje 30 mm", NEGRO
+            if C.TIRANTES_EN_TALLER:
+                largo_t, corto_t, color = "rebaje 30 mm", "rebaje 30 mm", NEGRO
+            else:
+                largo_t, corto_t, color = f"rebaje 30 mm · junta con {dato}", "rebaje 30 mm", NEGRO
+        elif clase == "esquina":
+            L.rect(u0, 0, u0 + tw, p.alto, fc="white", ec=NEGRO, hatch=HATCH_REBAJE, lw=0.8, zorder=4)
+            largo_t, corto_t, color = f"rebaje 30 mm · esquina {p.lado}-{dato}", "rebaje 30 mm", NEGRO
         elif clase == "libre":
             L.rect(u0, 0, u0 + tw, p.alto, fc="white", ec=NEGRO, hatch=HATCH_REBAJE, lw=0.8, zorder=4)
             largo_t, corto_t, color = "rebaje 30 mm · se une en obra", "rebaje 30 mm", NEGRO
@@ -366,8 +372,13 @@ def hoja_muro(d: Despiece, p: PanelMuro, fecha: str, pagina: str = ""):
                fc="white", ec=ROJO, lw=1.2, zorder=5)
         L.rect(r0, rv0, r0 + R55, rv1, fc="white", ec=NARANJA,
                ls=TR_VANO, lw=1.0, zorder=5)
-        L.rect(r0 + GAP, jj.v_ini, r0 + GAP + TIR, jj.v_fin, fc=TIRANTE, ec=NEGRO, lw=0.6, zorder=6)
-        for txt in (f"tirante 50×70 · jamba de {jj.vano_id} · encastrado", f"tirante 50×70 · {jj.vano_id}"):
+        if jj.tirante:
+            L.rect(r0 + GAP, jj.v_ini, r0 + GAP + TIR, jj.v_fin, fc=TIRANTE, ec=NEGRO, lw=0.6, zorder=6)
+            textos = (f"tirante 50×70 · jamba de {jj.vano_id} · encastrado", f"tirante 50×70 · {jj.vano_id}")
+        else:
+            L.rect(r0 + GAP, jj.v_ini, r0 + GAP + TIR, jj.v_fin, fc="white", ec=NEGRO, hatch=HATCH_REBAJE, lw=0.8, zorder=6)
+            textos = (f"rebaje 55 mm · jamba de {jj.vano_id}", f"rebaje 55 mm · {jj.vano_id}")
+        for txt in textos:
             if _largo_txt(txt, 7) * esc / 1000 <= (jj.v_fin - jj.v_ini) - 0.04:
                 L.texto(r0 + R55 + 0.035 if izq else r0 - 0.035,
                         (jj.v_ini + jj.v_fin) / 2, txt, rotation=90, fontsize=7, color=MARRON, zorder=6)
@@ -392,10 +403,17 @@ def hoja_muro(d: Despiece, p: PanelMuro, fecha: str, pagina: str = ""):
         libre = dict(fc="white", ec=NEGRO, hatch=HATCH_REBAJE, lw=0.8, zorder=5)
         v_ini = rv0 + (GAP if vp.tiene_antepecho else 0)
         v_fin = rv1 - GAP
+        jam = tir if vp.tirantes_jamba_taller else libre
         if vp.jamba_izq:
-            L.rect(vp.u0 - R55 + GAP, v_ini, vp.u0 - GAP, v_fin, **tir)
+            L.rect(vp.u0 - R55 + GAP, v_ini, vp.u0 - GAP, v_fin, **jam)
         if vp.jamba_der:
-            L.rect(vp.u1 + GAP, v_ini, vp.u1 + R55 - GAP, v_fin, **tir)
+            L.rect(vp.u1 + GAP, v_ini, vp.u1 + R55 - GAP, v_fin, **jam)
+        if not vp.tirantes_jamba_taller:                     # rótulo de la jamba, al costado del rebaje
+            txt = "rebaje 55 mm · jamba"
+            if _largo_txt(txt, 7) * esc / 1000 <= (v_fin - v_ini) - 0.04:
+                for ok, ux in ((vp.jamba_izq, vp.u0 - R55 - 0.035), (vp.jamba_der, vp.u1 + R55 + 0.035)):
+                    if ok and -0.02 < ux < p.largo + 0.02:
+                        L.texto(ux, (v_ini + v_fin) / 2, txt, rotation=90, fontsize=7, color=NEGRO, zorder=6)
         L.rect(vp.u0, vp.v1 + GAP, vp.u1, vp.v1 + GAP + TIR,
                **(tir if vp.tirante_dintel_taller else libre))
         if vp.tiene_antepecho:
@@ -543,6 +561,8 @@ def _leyenda(ax, x, y):
         ("caja", TIRANTE, None, 0, "Tirante 50×70 o 25×70"),
         ("libre", NEGRO, "-", 0, "Rebaje libre"),
     ]
+    if not C.TIRANTES_EN_TALLER:                     # sin tirantes de taller: no van en las referencias
+        items = [it for it in items if it[0] != "caja"]
     for k, (tipo, color, ls, lw, txt) in enumerate(items):
         c, f = divmod(k, 4)
         xx, yy = x + c * (WR / 2 + 1), y - 11.5 - f * 6.0
@@ -647,7 +667,7 @@ def hoja_techo(d: Despiece, t: PanelTecho, fecha: str, pagina: str = ""):
         if estado == "lleva":
             opciones = [f"tirante 50×70 clavado · junta con {txt}", f"tirante 50×70 · {txt}", "tirante 50×70"]
         elif estado == "recibe":
-            opciones = ["rebaje 30 mm"]
+            opciones = ["rebaje 30 mm"] if C.TIRANTES_EN_TALLER else [f"rebaje 30 mm · junta con {txt}", f"rebaje 30 mm · {txt}", "rebaje 30 mm"]
         else:
             opciones = [f"unión con {txt}", f"unión {txt}"]
         color = NEGRO if estado in ("lleva", "recibe") else GRIS
@@ -657,8 +677,8 @@ def hoja_techo(d: Despiece, t: PanelTecho, fecha: str, pagina: str = ""):
         if etiqueta is None:
             continue
         if vertical:
-            L.texto(cx + (0.08 if lugar == "izquierda" else -0.08), cy, etiqueta, fontsize=7.5, color=color,
-                    rotation=90, zorder=5)
+            L.texto(cx + (0.06 if lugar == "izquierda" else -0.06), cy, etiqueta, fontsize=7.5, color=color,
+                    rotation=90, zorder=5)          # pegado al rebaje: no pisa el cartel de la caída en paneles angostos
         else:
             L.texto(cx, cy + (0.07 if lugar == "abajo" else -0.07), etiqueta, fontsize=7.5, color=color, zorder=5)
     L.ax.add_patch(FancyArrowPatch((L.X(t.largo) + 4, L.Y(t.ancho / 2) - 14), (L.X(t.largo) + 22, L.Y(t.ancho / 2) - 14),
@@ -687,6 +707,8 @@ def _leyenda_techo(ax, x, y):
     ax.plot([x, x + WR], [y - 5.2, y - 5.2], color=NEGRO, lw=0.6)
     items = [("linea", TR_PERIMETRAL, "Rebaje perimetral 30 mm"), ("caja", None, "Tirante 50×70"),
              ("libre", TR_LIBRE, "Rebaje libre"), ("mixto", None, "Unión mixta")]
+    if not C.TIRANTES_EN_TALLER:
+        items = [items[0], items[2]]
     for k, (tipo, ls, txt) in enumerate(items):
         c, f = divmod(k, 2)
         xx, yy = x + c * (WR / 2 + 1), y - 11.5 - f * 6.0
